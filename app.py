@@ -23,19 +23,26 @@ questions = {
 	'house_size':"How many people live in your household?",
 	'kids' : "Are there any kids under 18 in your household?",
 	'senior_disabled' : "Is anyone in your household disabled or over the age of 60?",
-	'income' : "What is the total monthly income of everyone living in your household?",
-	'resources' : "How much money do you have in a checking or savings account?"
+	'income' : "What is the total monthly income of everyone in your household?",
+	'resources' : "What is the total savings (checking and savings accounts) of everyone in your household?"
 }
+
 households = {}
+#households[number][q_id] = answer to question
 
 @app.route('/')
 def index():
 	from_number = request.values.get('From')
 	body = request.values.get('Body')
-	app.logger.warning('BODY: %s\nHOUSEHOLDS: %s' % (body, households))
+	app.logger.warning('RECEIVED BODY: %s\nHOUSEHOLDS: %s' % (body, households))
+
+	#server restarted > new session
+	if from_number not in households:
+		session['convo'] = None
+		session['prev_qid'] = None
 
 	#clear
-	if body == 'Clear':
+	if body == 'Clear' or body == 'clear':
 		session['convo'] = None
 		session['prev_qid'] = None
 
@@ -47,13 +54,13 @@ def index():
 		households[from_number] = {}
 		qid = 'house_size'
 		session['prev_qid'] = qid
-
 		msg = questions[qid]
 		return respond(msg)
 	
 	#existing convo
 	elif convo:
 		#add data
+		prev_qid = session['prev_qid']
 		households[from_number][prev_qid] = cleanValue(body)
 		app.logger.warning('HOUSEHOLDS UPDATED: %s' % (households))
 
@@ -73,9 +80,9 @@ def index():
 			elig = calcEligibility(**households[from_number])
 			app.logger.warning('CALCULATING ELIGIBILITY: %s ==> %s' % (households, elig))
 			if elig:
-				msg = 'Looks like you might be eligible. You should try applying!'
+				msg = 'Looks like you might be eligible for CalFresh. You should try applying!'
 			else:
-				msg = str("Looks like you're probably not eligible.")
+				msg = str("Looks like you're probably not eligible for CalFresh.")
 			return respond(msg)
 
 def cleanValue(val):
