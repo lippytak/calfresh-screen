@@ -7,29 +7,47 @@ from sets import Set
 from twilio.rest import TwilioRestClient
 from flask import Flask, request, redirect, session
 from test_data import *
+from flask.ext.sqlalchemy import SQLAlchemy
 
 #setup
 app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
+db = SQLAlchemy(app)
 
 #constants
 programs = [Calfresh(), Medicaid()]
 data = {
-	'house_size':1,
-	'kids':0,
-	'senior_disabled':0,
-	'income':100,
-	'resources':100,
+	'5102068727':{
+		'house_size':1,
+		'kids':0,
+		'senior_disabled':0,
+		'income':100,
+		'resources':100,
+		},
+	'5552068727':{
+		'house_size':1,
+		'kids':0,
+		'senior_disabled':0,
+		'income':100,
+		'resources':100,
+		},
 }
 
 @app.route('/')
 def index():
+	return str(getEligiblePrograms(data['5102068727']))
+
+def getEligiblePrograms(data):
+	app.logger.info('Calculating eligibility for %s' % data)
 	eligible_programs = []
 
 	for p in programs:
+		app.logger.info('Calculating eligibility for %s' % p)
 		if p.calculateEligibility(data):
 			eligible_programs.append(p)
 
-	return 'Data: %s, Eligibility: %s' % (data, eligible_programs)
+	app.logger.info('Eligible for: %s' % eligible_programs)
+	return eligible_programs
 
 # #constants
 # app.secret_key = 'A0Zr98j/3yX R~XHH!jmN]LWX/,?RT'
@@ -140,6 +158,5 @@ def index():
 # 	return BASE_INCOME_THRESHOLD + ((house_size-1) * 377)
 
 if __name__ == '__main__':
-    # Bind to PORT if defined, otherwise default to 5000.
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=True)
