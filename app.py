@@ -2,16 +2,19 @@ import os
 import pprint
 import logging
 import twilio.twiml
-from program import *
 from sets import Set
 from twilio.rest import TwilioRestClient
 from flask import Flask, request, redirect, session
-from test_data import *
 from flask.ext.sqlalchemy import SQLAlchemy
+from flask import render_template
+from database import init_db, db_session, Base, force_drop_all
+from programs import Calfresh, Medicaid, IHHS
+from models import User
 
 #setup
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
+#app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/test.db'
 db = SQLAlchemy(app)
 
 #constants
@@ -33,9 +36,31 @@ data = {
 		},
 }
 
+@app.before_first_request
+def setup():
+    # Recreate database each time for demo
+    Base.metadata.create_all(bind=db.engine)
+    db.session.add(User('5102068727'))
+    db.session.add(User('5552068727'))
+    db.session.commit()
+
+# @app.route('/add-user')
+# def addUser():
+# 	name = request.args.get('name', None)
+# 	email = request.args.get('email', None)
+# 	u = User(name, email)
+# 	db_session.add(u)
+# 	db_session.commit()
+# 	return str(name)
+
+@app.teardown_request
+def shutdown_session(exception=None):
+	db_session.remove()
+
 @app.route('/')
 def index():
-	return str(getEligiblePrograms(data['5102068727']))
+	users = User.query.all()
+	return str(users)
 
 def getEligiblePrograms(data):
 	app.logger.info('Calculating eligibility for %s' % data)
@@ -158,5 +183,8 @@ def getEligiblePrograms(data):
 # 	return BASE_INCOME_THRESHOLD + ((house_size-1) * 377)
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+	port = int(os.environ.get('PORT', 5000))
+	#Base.metadata.drop_all(bind=db.engine)
+	force_drop_all()
+	app.run(host='0.0.0.0', port=port, debug=True)
+	init_db()
