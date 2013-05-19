@@ -8,8 +8,8 @@ from flask import Flask, request, redirect, session
 from flask.ext.sqlalchemy import SQLAlchemy
 from flask import render_template
 from database import init_db, db_session, Base, force_drop_all
-from programs import Calfresh, Medicaid, IHHS
-from models import User
+#from programs import Calfresh, Medicaid, IHHS
+from models import *
 
 #setup
 app = Flask(__name__)
@@ -17,7 +17,6 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
 #db = SQLAlchemy(app)
 
 #constants
-programs = [Calfresh(), Medicaid()]
 data = {
 	'5102068727':{
 		'house_size':1,
@@ -34,12 +33,36 @@ data = {
 		'resources':100,
 		},
 }
+programs = [Calfresh()]
+question_texts = ["How many people live in your household?",
+	"Are there any kids under 18 in your household?",
+	"Is anyone in your household disabled or over the age of 60?",
+	"What is the total monthly income of everyone in your household?",
+	"What is the total savings (checking and savings accounts) of everyone in your household?"]
 
 @app.before_first_request
 def setup():
-    db_session.add(User('5102068727'))
-    db_session.add(User('5552068727'))
-    db_session.commit()
+	#add users
+	user1 = User('5102068727')
+	user2 = User('5552068727')
+	db_session.add(user1)
+	db_session.add(user2)
+
+	#add questions
+	for text in question_texts:
+		q = Question(text)
+		db_session.add(q)
+
+	#add programs
+	program_subclasses = Program.__subclasses__()
+	for c in program_subclasses:
+		program = c()
+		db_session.add(program)
+
+	#add relationships
+
+
+	db_session.commit()
 
 # @app.route('/add-user')
 # def addUser():
