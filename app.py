@@ -13,9 +13,8 @@ from models import User
 
 #setup
 app = Flask(__name__)
-#app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/test.db'
-db = SQLAlchemy(app)
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
+#db = SQLAlchemy(app)
 
 #constants
 programs = [Calfresh(), Medicaid()]
@@ -38,11 +37,9 @@ data = {
 
 @app.before_first_request
 def setup():
-    # Recreate database each time for demo
-    Base.metadata.create_all(bind=db.engine)
-    db.session.add(User('5102068727'))
-    db.session.add(User('5552068727'))
-    db.session.commit()
+    db_session.add(User('5102068727'))
+    db_session.add(User('5552068727'))
+    db_session.commit()
 
 # @app.route('/add-user')
 # def addUser():
@@ -162,29 +159,8 @@ def getEligiblePrograms(data):
 # 	resp.sms(msg)
 # 	return str(resp)
 
-# def calcEligibility(house_size, kids, senior_disabled, income, resources):
-# 	income_threshold = calcIncomeThreshold(house_size)
-# 	resource_threshold = calcResourceThreshold(kids, senior_disabled)
-# 	print 'income threshold: %s' % income_threshold
-# 	print 'resource threshold: %s' % resource_threshold
-# 	if income <= income_threshold and resources <= resource_threshold:
-# 		return True
-# 	return False
-
-# def calcResourceThreshold(kids, senior_disabled):
-# 	if kids > 0:
-# 		return float("inf")
-# 	elif kids == 0 and senior_disabled > 0:
-# 		return SENIOR_RESOURCE_THRESHOLD
-# 	elif kids == 0 and senior_disabled == 0:
-# 		return STD_RESOURCE_THRESHOLD
-
-# def calcIncomeThreshold(house_size):
-# 	return BASE_INCOME_THRESHOLD + ((house_size-1) * 377)
-
 if __name__ == '__main__':
 	port = int(os.environ.get('PORT', 5000))
-	#Base.metadata.drop_all(bind=db.engine)
 	force_drop_all()
-	app.run(host='0.0.0.0', port=port, debug=True)
 	init_db()
+	app.run(host='0.0.0.0', port=port, debug=os.environ['DEBUG'])
