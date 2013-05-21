@@ -8,7 +8,6 @@ from flask import Flask, request, redirect, session
 from flask.ext.sqlalchemy import SQLAlchemy
 from flask import render_template
 from database import init_db, db_session, Base, force_drop_all
-#from programs import Calfresh, Medicaid, IHHS
 from models import *
 
 #setup
@@ -33,7 +32,7 @@ data = {
 		'resources':100,
 		},
 }
-programs = [Calfresh()]
+
 question_texts = ["How many people live in your household?",
 	"Are there any kids under 18 in your household?",
 	"Is anyone in your household disabled or over the age of 60?",
@@ -42,24 +41,40 @@ question_texts = ["How many people live in your household?",
 
 @app.before_first_request
 def setup():
-	#add users
-	user1 = User('5102068727')
-	user2 = User('5552068727')
-	db_session.add(user1)
-	db_session.add(user2)
 
 	#add questions
+	questions = []
 	for text in question_texts:
 		q = Question(text)
+		questions.append(q)
 		db_session.add(q)
 
 	#add programs
+	programs = []
 	program_subclasses = Program.__subclasses__()
 	for c in program_subclasses:
 		program = c()
+		programs.append(program)
 		db_session.add(program)
 
-	#add relationships
+	#add last question and programs
+	# calfresh = Calfresh()
+	# user1.last_question = questions[0]
+	# user1.eligible_programs = [programs[0]]
+
+	#add fat user
+	u = User('5102068727')
+	q = Question('How old are you?')
+	qyesno = YesNoQuestion('Do you have any kids?')
+	a = Answer('5', q)
+	p = Calfresh()
+
+	u.last_question = q
+	u.answers.append(a)
+	u.eligible_programs.append(p)
+	db_session.add(u)
+
+	#add questions to programs
 
 
 	db_session.commit()
@@ -79,8 +94,8 @@ def shutdown_session(exception=None):
 
 @app.route('/')
 def index():
-	users = User.query.all()
-	return str(users)
+	u = User.query.first()
+	return str(u)
 
 def getEligiblePrograms(data):
 	app.logger.info('Calculating eligibility for %s' % data)
