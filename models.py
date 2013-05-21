@@ -46,8 +46,8 @@ class User(Base):
 class Question(Base):
 	__tablename__ = 'questions'
 	id = Column(Integer, primary_key=True)
-	question_text = Column(String(50), unique=True)
-	clarification_text = Column(String(50), unique=True)
+	question_text = Column(String(160), unique=True)
+	clarification_text = Column(String(160), unique=True)
 	order = Column(Integer)
 	discriminator = Column('type', String(50))
 
