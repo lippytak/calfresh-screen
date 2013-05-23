@@ -19,24 +19,6 @@ from models import *
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
 
-#constants
-data = {
-	'5102068727':{
-		'house_size':1,
-		'kids':0,
-		'senior_disabled':0,
-		'income':100,
-		'resources':100,
-		},
-	'5552068727':{
-		'house_size':1,
-		'kids':0,
-		'senior_disabled':0,
-		'income':100,
-		'resources':100,
-		},
-}
-
 @app.before_first_request
 def setup():
 	# load questions into DB
