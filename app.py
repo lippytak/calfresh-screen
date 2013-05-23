@@ -1,17 +1,15 @@
 import os
+import time
 import pprint
 import logging
 import twilio.twiml
 import json
-import urllib2
-import urllib
 from questions import questions_data
 from test_data import test_data
 from sets import Set
 from twilio.rest import TwilioRestClient
-from flask import Flask, request, redirect, session, url_for
+from flask import Flask, request, redirect, session, url_for, render_template
 from flask.ext.sqlalchemy import SQLAlchemy
-from flask import render_template
 from database import init_db, db_session, Base, force_drop_all
 from models import *
 
@@ -59,8 +57,7 @@ def shutdown_session(exception=None):
 
 @app.route('/')
 def index():
-	questions = json.dumps(questions_data)
-	return str(data)
+	return render_template('welcome.html')
 
 def getEligiblePrograms(data):
 	app.logger.info('Calculating eligibility for %s' % data)
@@ -80,17 +77,22 @@ def text():
 	msg = request.args.get('Body')
 	u = User.query.filter_by(phone_number=from_number).first()
 	
-	# new user - add to DB and send first Q
+	#new user - add to DB and send first Q
 	if not u:
 		app.logger.warning('Adding user to DB with phone number: %s' % from_number)
 		u = User(phone_number=from_number)
 		db_session.add(u)
 		db_session.commit()
 
+		#send welcome message
+		sendMessageTemplate(u, 'welcome.html')
+		time.sleep(2)
+
+		#send first question
 		q = Question.query.filter_by(order=0).first()
 		sendQuestion(u, q)
 
-	# existing user - parse response and send next Q if valid
+	#existing user - parse response and send next Q if valid
 	else:
 		app.logger.warning('Found user %s' % u)
 		last_question = u.last_question
@@ -134,6 +136,17 @@ def sendMessage(phone_number, message):
 	auth_token = os.environ['AUTH_TOKEN']
 	client = TwilioRestClient(account_sid, auth_token)
 	message = client.sms.messages.create(to=phone_number, from_="+14155346272",
+                                     body=message)
+
+def sendMessageTemplate(user, template):
+	phone_number = user.phone_number
+	app.logger.warning('Sending phone %s the template: %s' % (phone_number, template))
+	account_sid = os.environ['ACCOUNT_SID']
+	auth_token = os.environ['AUTH_TOKEN']
+	client = TwilioRestClient(account_sid, auth_token)
+	
+	message = render_template(template)
+	client.sms.messages.create(to=phone_number, from_="+14155346272",
                                      body=message)
 
 def calculateAndGetEligibility(user):
