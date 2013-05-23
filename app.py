@@ -127,6 +127,7 @@ def text():
 			next_question = Question.query.filter(Question.order > last_question.order).order_by(Question.order).first()
 			if next_question:
 				sendQuestion(u, next_question)
+			# if there are no more questions, calculate eligibility
 			else:
 				app.logger.warning('User %s finished all questions' % u)
 				eligible_programs = calculateAndGetEligibility(u)
