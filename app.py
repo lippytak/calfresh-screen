@@ -2,9 +2,14 @@ import os
 import pprint
 import logging
 import twilio.twiml
+import json
+import urllib2
+import urllib
+from questions import questions_data
+from test_data import test_data
 from sets import Set
 from twilio.rest import TwilioRestClient
-from flask import Flask, request, redirect, session
+from flask import Flask, request, redirect, session, url_for
 from flask.ext.sqlalchemy import SQLAlchemy
 from flask import render_template
 from database import init_db, db_session, Base, force_drop_all
@@ -32,60 +37,39 @@ data = {
 		},
 }
 
-question_texts = ["How many people live in your household?",
-	"Are there any kids under 18 in your household?",
-	"Is anyone in your household disabled or over the age of 60?",
-	"What is the total monthly income of everyone in your household?",
-	"What is the total savings (checking and savings accounts) of everyone in your household?"]
-
 @app.before_first_request
 def setup():
-
-	#add questions
-	questions = []
-	for text in question_texts:
-		q = Question(text)
-		questions.append(q)
+	# load questions into DB
+	yesnoquestions = questions_data['yesnoquestions']
+	for q_data in yesnoquestions:
+		key = q_data['key']
+		order = q_data['order']
+		question_text = q_data['question_text']
+		q = YesNoQuestion(key=key, question_text=question_text, order=order, id=order)
+		db_session.add(q)
+	
+	rangequestions = questions_data['rangequestions']
+	for q_data in rangequestions:
+		key = q_data['key']
+		order = q_data['order']
+		question_text = q_data['question_text']
+		q = RangeQuestion(key=key, question_text=question_text, order=order, id=order)
 		db_session.add(q)
 
-	#add programs
-	programs = []
+	# load programs into DB
 	program_subclasses = Program.__subclasses__()
 	for c in program_subclasses:
 		program = c()
-		programs.append(program)
 		db_session.add(program)
 
-	#add last question and programs
-	# calfresh = Calfresh()
-	# user1.last_question = questions[0]
-	# user1.eligible_programs = [programs[0]]
-
-	#add fat user
-	u = User('5102068727')
-	q = Question('How old are you?')
-	qyesno = YesNoQuestion('Do you have any kids?')
-	a = Answer('5', q)
-	p = Calfresh()
-
-	u.last_question = q
-	u.answers.append(a)
-	u.eligible_programs.append(p)
-	db_session.add(u)
-
-	#add questions to programs
-
+	# load user test data into DB
+	# user_data = test_data['users']
+	# for u_data in user_data:
+	# 	phone_number = u_data['phone_number']
+	# 	u = User(phone_number=phone_number)
+	# 	db_session.add(u)
 
 	db_session.commit()
-
-# @app.route('/add-user')
-# def addUser():
-# 	name = request.args.get('name', None)
-# 	email = request.args.get('email', None)
-# 	u = User(name, email)
-# 	db_session.add(u)
-# 	db_session.commit()
-# 	return str(name)
 
 @app.teardown_request
 def shutdown_session(exception=None):
@@ -93,8 +77,8 @@ def shutdown_session(exception=None):
 
 @app.route('/')
 def index():
-	u = User.query.first()
-	return str(u)
+	questions = json.dumps(questions_data)
+	return str(data)
 
 def getEligiblePrograms(data):
 	app.logger.info('Calculating eligibility for %s' % data)
@@ -108,93 +92,88 @@ def getEligiblePrograms(data):
 	app.logger.info('Eligible for: %s' % eligible_programs)
 	return eligible_programs
 
-# #constants
-# app.secret_key = 'A0Zr98j/3yX R~XHH!jmN]LWX/,?RT'
-# SECRET_KEY = 'a secret key'
-# BASE_INCOME_THRESHOLD = 1484
-# STD_RESOURCE_THRESHOLD = 2000
-# SENIOR_RESOURCE_THRESHOLD = 3000
-
-# #db
-# required = Set(['house_size','kids','senior_disabled','income','resources'])
-# questions = {
-# 	'house_size':"How many people live in your household?",
-# 	'kids' : "Are there any kids under 18 in your household?",
-# 	'senior_disabled' : "Is anyone in your household disabled or over the age of 60?",
-# 	'income' : "What is the total monthly income of everyone in your household?",
-# 	'resources' : "What is the total savings (checking and savings accounts) of everyone in your household?"
-# }
-
-# households = {}
-# #households[number][q_id] = answer to question
-
-# @app.route('/')
-# def index():
-# 	from_number = request.values.get('From')
-# 	body = request.values.get('Body')
-# 	app.logger.warning('RECEIVED BODY: %s\nHOUSEHOLDS: %s' % (body, households))
-
-# 	#server restarted > new session
-# 	if from_number not in households:
-# 		session['convo'] = None
-# 		session['prev_qid'] = None
-
-# 	#clear
-# 	if body == 'Clear' or body == 'clear':
-# 		session['convo'] = None
-# 		session['prev_qid'] = None
-
-# 	#new convo
-# 	convo = session.get('convo', None)
-# 	if not convo:
-# 		app.logger.warning('STARTING NEW CONVO')
-# 		session['convo'] = 1
-# 		households[from_number] = {}
-# 		qid = 'house_size'
-# 		session['prev_qid'] = qid
-# 		msg = questions[qid]
-# 		return respond(msg)
+@app.route('/text')
+def text():
+	from_number = request.args.get('From')
+	msg = request.args.get('Body')
+	u = User.query.filter_by(phone_number=from_number).first()
 	
-# 	#existing convo
-# 	elif convo:
-# 		#add data
-# 		prev_qid = session['prev_qid']
-# 		households[from_number][prev_qid] = cleanValue(body)
-# 		app.logger.warning('HOUSEHOLDS UPDATED: %s' % (households))
+	# new user - add to DB and send first Q
+	if not u:
+		app.logger.warning('Adding user to DB with phone number: %s' % from_number)
+		u = User(phone_number=from_number)
+		db_session.add(u)
+		db_session.commit()
 
-# 		#ask next missing question
-# 		existing = Set(households[from_number].keys())
-# 		missing = list(required - existing)
-# 		app.logger.warning('REQUIRED - EXISTING = MISSING: %s - %s = %s' % (required, existing, missing))
+		q = Question.query.filter_by(order=0).first()
+		sendQuestion(u, q)
 
-# 		if missing:
-# 			qid = missing.pop(0)
-# 			session['prev_qid'] = qid
-# 			msg = questions[qid]
-# 			return respond(msg)
+	# existing user - parse response and send next Q if valid
+	else:
+		app.logger.warning('Found user %s' % u)
+		last_question = u.last_question
+		normalized_response = last_question.normalizeResponse(msg)
+		
+		# valid response, add answer to DB and ask next Q
+		if normalized_response:
+			app.logger.warning('Adding user %s answer to DB: %s' % (u, normalized_response))
+			a = Answer(key=last_question.key, value=normalized_response, question=last_question)
+			u.answers.append(a)
+			db_session.add(a)
+			db_session.add(u)
+			db_session.commit()
 
-# 		#none missing - calculate eligibility
-# 		elif not missing:
-# 			elig = calcEligibility(**households[from_number])
-# 			app.logger.warning('CALCULATING ELIGIBILITY: %s ==> %s' % (households, elig))
-# 			if elig:
-# 				msg = 'Looks like you might be eligible for CalFresh. You should try applying!'
-# 			else:
-# 				msg = str("Looks like you're probably not eligible for CalFresh.")
-# 			return respond(msg)
+			# get question with next highest order
+			next_question = Question.query.filter(Question.order > last_question.order).order_by(Question.order).first()
+			if next_question:
+				sendQuestion(u, next_question)
+			else:
+				app.logger.warning('User %s finished all questions' % u)
+				eligible_programs = calculateAndGetEligibility(u)
+				return str(eligible_programs)
+		
+		# else invalid response, re-send question for now
+		else:
+			sendQuestion(u, last_question)
+	
+	return 'hi'
 
-# def cleanValue(val):
-# 	if val.isdigit():
-# 		return int(val)
-# 	elif val[0] == 'Y' or val[0] == 'y':
-# 		return 1
-# 	elif val[0] == 'N' or val[0] == 'n':
-# 		return 0
+def sendQuestion(user, question):
+	app.logger.warning('Sending user %s the question: %s' % (user, question))
+	user.last_question = question
+	db_session.add(user)
+	db_session.commit()
+	sendMessage(user.phone_number, question.question_text)
 
-# def respond(msg):
-# 	resp = twilio.twiml.Response()
-# 	resp.sms(msg)
-# 	return str(resp)
+def sendMessage(phone_number, message):
+	app.logger.warning('Sending phone %s the msg: %s' % (phone_number, message))
+	account_sid = os.environ['ACCOUNT_SID']
+	auth_token = os.environ['AUTH_TOKEN']
+	client = TwilioRestClient(account_sid, auth_token)
+	message = client.sms.messages.create(to=phone_number, from_="+14155346272",
+                                     body=message)
+
+def calculateAndGetEligibility(user):
+	app.logger.warning('Calculating eligibility for %s' % user)
+	programs = Program.query.all()
+	data = getUserDataDict(user)
+	for p in programs:
+		if p.calculateEligibility(data):
+			user.eligible_programs.append(p)
+	db_session.add(user)
+	db_session.commit()
+	eligible_programs = user.eligible_programs
+	app.logger.warning('Eligible programs for %s are: %s' % (user, eligible_programs))
+	return eligible_programs
+
+def getUserDataDict(user):
+	app.logger.warning('Getting data dict for %s' % user)
+	answers = user.answers
+	data = {}
+	for a in answers:
+		data[a.key] = int(a.value)
+	app.logger.warning('Data dict for %s is: %s' % (user, data))
+	return data
 
 if __name__ == '__main__':
 	port = int(os.environ.get('PORT', 5000))

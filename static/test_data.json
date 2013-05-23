@@ -1,16 +1,16 @@
-test_data = {
-  "users": [
+questions_data = {
+  "yesnoquestions": [
     {
-      "phone_number": "5102068727",
+      "key": "kids",
+      "question_text": "Are there any kids under 18 in your household?",
+      "clarification_text": "",
+      "order": "1"
     },
     {
-      "phone_number": "5555555555",
-    },
-    {
-      "phone_number": "5555555551",
-    },
-    {
-      "phone_number": "5552068727",
+      "key": "disabled",
+      "question_text": "Is anyone in your household disabled or over the age of 60?",
+      "clarification_text": "",
+      "order": "2"
     }
   ],
   "rangequestions": [

@@ -46,20 +46,24 @@ class User(Base):
 class Question(Base):
 	__tablename__ = 'questions'
 	id = Column(Integer, primary_key=True)
+	key = Column(String(160), unique=True)
 	question_text = Column(String(160), unique=True)
-	clarification_text = Column(String(160), unique=True)
+	clarification_text = Column(String(160))
 	order = Column(Integer)
 	discriminator = Column('type', String(50))
 
 	__mapper_args__ = {'polymorphic_on': discriminator}
 
-	def __init__(self, question_text, clarification_text=None, order=None):
+	def __init__(self, key, question_text, id=None, clarification_text=None, order=None):
+		if id:
+			self.id = id
+		self.key = key
 		self.question_text = question_text
 		self.clarification_text = clarification_text
 		self.order = order
 
 	def __repr__(self):
-		return 'Question: %r' % (self.question_text)
+		return 'Question: %r (%r)' % (self.key, self.order)
 
 	def normalizeResponse(self, response):
 		raise NotImplementedError("Should have implemented this")
@@ -71,7 +75,7 @@ class YesNoQuestion(Question):
 	__mapper_args__ = {'polymorphic_identity': 'yesnoquestions'}
 
 	def normalizeResponse(self, response):
-		return False
+		return response
 
 class RangeQuestion(Question):
 	__tablename__ = 'rangequestions'
@@ -81,7 +85,10 @@ class RangeQuestion(Question):
 
 	__mapper_args__ = {'polymorphic_identity': 'rangequestions'}
 
-	def __init__(self, question_text, clarification_text, order, answer_min, answer_max):
+	def __init__(self, key, question_text, id=None, clarification_text=None, order=None, answer_min=None, answer_max=None):
+		if id:
+			self.id=id
+		self.key = key
 		self.question_text = question_text
 		self.clarification_text = clarification_text
 		self.order = order
@@ -95,11 +102,13 @@ class RangeQuestion(Question):
 class Answer(Base):
 	__tablename__ = 'answers'
 	id = Column(Integer, primary_key=True)
+	key = Column(String(160))
 	value = Column(String(50))
 	question_id = Column(Integer, ForeignKey('questions.id'))
 	question = relationship('Question')
 
-	def __init__(self, value, question):
+	def __init__(self, key, value, question):
+		self.key = key
 		self.value = value
 		self.question = question
 
@@ -134,31 +143,18 @@ class Calfresh(Program):
 	__mapper_args__ = {'polymorphic_identity': 'calfresh'}
 
 	BASE_INCOME_THRESHOLD = 1484
-	STD_RESOURCE_THRESHOLD = 2000
-	SENIOR_RESOURCE_THRESHOLD = 3000
 
 	def __init__(self):
 		self.description = 'This is an instance of Calfresh program'
 
 	def calculateEligibility(self, data):
 		house_size = data['house_size']
-		kids = data['kids']
-		senior_disabled = data['senior_disabled']
-		income = data['income']
-
+		disabled = data['disabled']
+		monthly_income = data['monthly_income']
 		income_threshold = self.calcIncomeThreshold(house_size)
-		resource_threshold = self.calcResourceThreshold(kids, senior_disabled)
-		if income <= income_threshold and resources <= resource_threshold:
+		if monthly_income <= income_threshold:
 			return True
 		return False
-
-	def calcResourceThreshold(self, kids, senior_disabled):
-		if kids > 0:
-			return float("inf")
-		elif kids == 0 and senior_disabled > 0:
-			return self.SENIOR_RESOURCE_THRESHOLD
-		elif kids == 0 and senior_disabled == 0:
-			return self.STD_RESOURCE_THRESHOLD
 
 	def calcIncomeThreshold(self, house_size):
 		return self.BASE_INCOME_THRESHOLD + ((house_size-1) * 377)
@@ -172,4 +168,4 @@ class Medicaid(Program):
 		self.description = 'This is an instance of Medicaid program'
 
 	def calculateEligibility(self, data):
-		return False
+		return True
