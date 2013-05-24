@@ -53,90 +53,87 @@ def shutdown_session(exception=None):
 
 @app.route('/')
 def index():
-	p = Calfresh()
-	template = str(p.name) + '.html'
-	return render_template(template)
+	return render_template('index.html')
 
 @app.route('/text')
 def text():
 	from_number = request.args.get('From')
 	msg = request.args.get('Body')
-	u = User.query.filter_by(phone_number=from_number).first()
+	user = User.query.filter_by(phone_number=from_number).first()
 	
 	#new user - add to DB and send first Q
-	if not u:
-		app.logger.warning('Adding user to DB with phone number: %s' % from_number)
-		u = User(phone_number=from_number, questions=question_set)
-		db_session.add(u)
-		db_session.commit()
+	if not user:
+		user = addAndGetNewUser(from_number)
 
-		#send welcome message
-		sendMessageTemplate(u, 'welcome.html')
-
-		#send first question
-		q = Question.query.filter_by(order=0).first()
-		sendQuestion(u, q)
+		#send welcome msg and first question
+		welcome_message = sendMessageTemplate(user, 'welcome.html')
+		message = sendNextQuestion(user)
+		return 'welcome:%s | first question: %s' % (welcome_message, message)
 
 	#existing user - parse response and send next Q if valid
 	else:
-		app.logger.warning('Found user %s' % u)
-		last_question = u.last_question
-		normalized_response = last_question.normalizeResponse(msg)
+		app.logger.warning('Found user %s' % user)
+		normalized_response = user.last_question.normalizeResponse(msg)
 		
 		# valid response, add answer to DB and ask next Q
 		if normalized_response:
-			app.logger.warning('Adding user %s answer to DB: %s' % (u, normalized_response))
-			last_question.answer = normalized_response
-			u.last_question = last_question
-			db_session.add(u)
-			db_session.commit()
+			addNewAnswer(user, normalized_response)
 
 			# get question with next highest order
-			next_question = Question.query.filter(Question.order > last_question.order).order_by(Question.order).first()
+			next_question = user.getNextQuestion()
 			if next_question:
-				sendQuestion(u, next_question)
-				return str(next_question)
-			# if there are no more questions, calculate eligibility
+				return sendQuestion(user, next_question)
+
+			# no more questions, all done!
 			else:
-				app.logger.warning('User %s finished all questions' % u)
-				eligible_programs = calculateAndGetEligibility(u)
+				app.logger.warning('User %s finished all questions' % user)
+				eligible_programs = calculateAndGetEligibility(user)
 
 				# respond with eligible programs
 				if eligible_programs:
 					context = {'eligible_programs':eligible_programs}
-					sendMessageTemplate(u, 'eligible.html', **context)
+					message = sendMessageTemplate(user, 'eligible.html', **context)
+					
+					#respond with more program info
 					for p in eligible_programs:
 						template = str(p.name.lower()) + '.html'
-						sendMessageTemplate(u, template)
+						sendMessageTemplate(user, template)
+					return message
 
-				# if eligible_programs:
-				# 	context = {'eligible_programs':eligible_programs}
-				# 	sendMessageTemplate(user, 'eligible.html', context)
+				# no eligible programs
+				else:
+					return sendMessageTemplate(user, 'not-eligible.html')
 
-				#return render_template('eligible.html', context)
-				return render_template("eligible.html", **context)
-		
-		# else invalid response, re-send question for now
+		# invalid response, re-send question for now
 		else:
-			sendQuestion(u, last_question)
-	
-	return 'hi'
+			return sendQuestion(user, user.last_question)
+
+def addNewAnswer(user, answer):
+	app.logger.warning('Adding user %s answer to DB: %s' % (user, answer))
+	user.last_question.answer = answer
+	db_session.add(user)
+	db_session.commit()
+
+def addAndGetNewUser(phone_number):
+	app.logger.warning('Adding user to DB with phone number: %s' % phone_number)
+	user = User(phone_number=phone_number, questions=question_set)
+	db_session.add(user)
+	db_session.commit()
+	return user
+
+def sendNextQuestion(user):
+	next_question = user.getNextQuestion()
+	message = sendQuestion(user, next_question)
+	return message
 
 def sendQuestion(user, question):
 	app.logger.warning('Sending user %s the question: %s' % (user, question))
 	user.last_question = question
 	db_session.add(user)
 	db_session.commit()
-	sendMessage(user.phone_number, question.question_text)
-
-def sendMessage(phone_number, message):
-	app.logger.warning('Sending phone %s the msg: %s' % (phone_number, message))
-	account_sid = os.environ['ACCOUNT_SID']
-	auth_token = os.environ['AUTH_TOKEN']
-	client = TwilioRestClient(account_sid, auth_token)
-	message = client.sms.messages.create(to=phone_number, from_="+14155346272",
-                                     body=message)
-	time.sleep(2)
+	message = question.question_text
+	sendMessage(user.phone_number, message)
+	return message
 
 def sendMessageTemplate(user, template, **kwargs):
 	phone_number = user.phone_number
@@ -145,15 +142,18 @@ def sendMessageTemplate(user, template, **kwargs):
 	context = {}
 	for key, value in kwargs.iteritems():
 		context[key] = value
+	message = render_template(template, **context)
+	sendMessage(phone_number, message)
+	return message
+
+def sendMessage(phone_number, message):
+	app.logger.warning('Sending phone %s the msg: %s' % (phone_number, message))
 	account_sid = os.environ['ACCOUNT_SID']
 	auth_token = os.environ['AUTH_TOKEN']
 	client = TwilioRestClient(account_sid, auth_token)
-	#fix me...
-	message = render_template(template, **context)
 	client.sms.messages.create(to=phone_number, from_="+14155346272",
                                      body=message)
 	time.sleep(2)
-	return message
 
 def calculateAndGetEligibility(user):
 	app.logger.warning('Calculating eligibility for %s' % user)

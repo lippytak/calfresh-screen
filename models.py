@@ -39,10 +39,15 @@ class User(Base):
 		self.questions = questions
 
 	def __repr__(self):
-		return 'User phone: %r last_question: %r eligible_programs: %r' % (
+		return '<User phone: %r last_question: %r>' % (
 			self.phone_number,
-			self.last_question_id,
-			self.eligible_programs)
+			self.last_question_id)
+
+	def getNextQuestion(self):
+		last_question_order = self.last_question.order if self.last_question else -1
+		future_questions = sorted([q for q in self.questions if q.order > last_question_order], key=lambda question: question.order)
+		next_question = future_questions[0] if future_questions else None
+		return next_question
 
 class Question(Base):
 	__tablename__ = 'questions'
@@ -67,7 +72,7 @@ class Question(Base):
 		self.order = order
 
 	def __repr__(self):
-		return 'Question: %r (%r)' % (self.key, self.order)
+		return '<Question: %r (%r)>' % (self.key, self.order)
 
 	def globalHandler(self, response):
 		# add LEAVE and other global cases...help, finding user questions, restart, etc.
