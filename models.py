@@ -96,28 +96,11 @@ class RangeQuestion(Question):
 	def normalizeResponse(self, response):
 		return response
 
-# answer classes
-# class Answer(Base):
-# 	__tablename__ = 'answers'
-# 	id = Column(Integer, primary_key=True)
-# 	key = Column(String(160))
-# 	value = Column(String(50))
-# 	question_id = Column(Integer, ForeignKey('questions.id'))
-# 	question = relationship('Question')
-
-# 	def __init__(self, key, value, question):
-# 		self.key = key
-# 		self.value = value
-# 		self.question = question
-
-# 	def __repr__(self):
-# 		return 'Answer: %r' % (self.value)
-
 # program classes
 class Program(Base):
 	__tablename__ = 'programs'
 	id = Column(Integer, primary_key=True)
-	description = Column(String(50))
+	name = description = Column(String(50), unique=True)
 	discriminator = Column('type', String(50))
 
 	__mapper_args__ = {'polymorphic_on': discriminator}
@@ -125,11 +108,11 @@ class Program(Base):
 	required_questions = relationship('Question',
 							secondary=program_questions)
 
-	def __init__(self, description):
-		self.description = description
+	def __init__(self, name):
+		self.name = name
 
 	def __repr__(self):
-		return 'Program: %r' % (self.description)
+		return '<Program: %r>' % (self.name)
 
 	def calculateEligibility(self):
 		raise NotImplementedError("Should have implemented this")
@@ -142,7 +125,7 @@ class Calfresh(Program):
 	BASE_INCOME_THRESHOLD = 1484
 
 	def __init__(self):
-		self.description = 'This is an instance of Calfresh program'
+		self.name = 'CalFresh'
 
 	def calculateEligibility(self, data):
 		house_size = data['house_size']
@@ -156,13 +139,13 @@ class Calfresh(Program):
 	def calcIncomeThreshold(self, house_size):
 		return self.BASE_INCOME_THRESHOLD + ((house_size-1) * 377)
 
-class Medicaid(Program):
+class Medical(Program):
 	__tablename__ = 'medicaid'
 	id = Column(Integer, ForeignKey('programs.id'), primary_key=True)
 	__mapper_args__ = {'polymorphic_identity': 'medicaid'}
 
 	def __init__(self):
-		self.description = 'This is an instance of Medicaid program'
+		self.name = 'Medi-Cal'
 
 	def calculateEligibility(self, data):
 		return True

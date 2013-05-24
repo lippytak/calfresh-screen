@@ -22,14 +22,13 @@ question_set = []
 
 @app.before_first_request
 def setup():
-	# questions
+	# load questions
 	yesnoquestions = questions_data['yesnoquestions']
 	for q_data in yesnoquestions:
 		key = q_data['key']
 		order = q_data['order']
 		question_text = q_data['question_text']
 		q = YesNoQuestion(key=key, question_text=question_text, order=order, id=order)
-		#db_session.add(q)
 		question_set.append(q)
 	
 	rangequestions = questions_data['rangequestions']
@@ -38,21 +37,13 @@ def setup():
 		order = q_data['order']
 		question_text = q_data['question_text']
 		q = RangeQuestion(key=key, question_text=question_text, order=order, id=order)
-		#db_session.add(q)
 		question_set.append(q)
 
-	# programs
+	# load programs
 	program_subclasses = Program.__subclasses__()
 	for c in program_subclasses:
 		program = c()
 		db_session.add(program)
-
-	# load user test data into DB
-	# user_data = test_data['users']
-	# for u_data in user_data:
-	# 	phone_number = u_data['phone_number']
-	# 	u = User(phone_number=phone_number)
-	# 	db_session.add(u)
 
 	db_session.commit()
 
@@ -62,19 +53,9 @@ def shutdown_session(exception=None):
 
 @app.route('/')
 def index():
-	return render_template('question.html', question=question)
-
-def getEligiblePrograms(data):
-	app.logger.info('Calculating eligibility for %s' % data)
-	eligible_programs = []
-
-	for p in programs:
-		app.logger.info('Calculating eligibility for %s' % p)
-		if p.calculateEligibility(data):
-			eligible_programs.append(p)
-
-	app.logger.info('Eligible for: %s' % eligible_programs)
-	return eligible_programs
+	p = Calfresh()
+	template = str(p.name) + '.html'
+	return render_template(template)
 
 @app.route('/text')
 def text():
@@ -91,7 +72,6 @@ def text():
 
 		#send welcome message
 		sendMessageTemplate(u, 'welcome.html')
-		time.sleep(2)
 
 		#send first question
 		q = Question.query.filter_by(order=0).first()
@@ -120,7 +100,21 @@ def text():
 			else:
 				app.logger.warning('User %s finished all questions' % u)
 				eligible_programs = calculateAndGetEligibility(u)
-				return str(eligible_programs)
+
+				# respond with eligible programs
+				if eligible_programs:
+					context = {'eligible_programs':eligible_programs}
+					sendMessageTemplate(u, 'eligible.html', **context)
+					for p in eligible_programs:
+						template = str(p.name.lower()) + '.html'
+						sendMessageTemplate(u, template)
+
+				# if eligible_programs:
+				# 	context = {'eligible_programs':eligible_programs}
+				# 	sendMessageTemplate(user, 'eligible.html', context)
+
+				#return render_template('eligible.html', context)
+				return render_template("eligible.html", **context)
 		
 		# else invalid response, re-send question for now
 		else:
@@ -142,17 +136,23 @@ def sendMessage(phone_number, message):
 	client = TwilioRestClient(account_sid, auth_token)
 	message = client.sms.messages.create(to=phone_number, from_="+14155346272",
                                      body=message)
+	time.sleep(2)
 
-def sendMessageTemplate(user, template):
+def sendMessageTemplate(user, template, **kwargs):
 	phone_number = user.phone_number
 	app.logger.warning('Sending phone %s the template: %s' % (phone_number, template))
+	
+	context = {}
+	for key, value in kwargs.iteritems():
+		context[key] = value
 	account_sid = os.environ['ACCOUNT_SID']
 	auth_token = os.environ['AUTH_TOKEN']
 	client = TwilioRestClient(account_sid, auth_token)
-	
-	message = render_template(template)
+	#fix me...
+	message = render_template(template, **context)
 	client.sms.messages.create(to=phone_number, from_="+14155346272",
                                      body=message)
+	time.sleep(2)
 	return message
 
 def calculateAndGetEligibility(user):
