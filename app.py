@@ -17,16 +17,20 @@ from models import *
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
 
+#globals
+question_set = []
+
 @app.before_first_request
 def setup():
-	# load questions into DB
+	# questions
 	yesnoquestions = questions_data['yesnoquestions']
 	for q_data in yesnoquestions:
 		key = q_data['key']
 		order = q_data['order']
 		question_text = q_data['question_text']
 		q = YesNoQuestion(key=key, question_text=question_text, order=order, id=order)
-		db_session.add(q)
+		#db_session.add(q)
+		question_set.append(q)
 	
 	rangequestions = questions_data['rangequestions']
 	for q_data in rangequestions:
@@ -34,9 +38,10 @@ def setup():
 		order = q_data['order']
 		question_text = q_data['question_text']
 		q = RangeQuestion(key=key, question_text=question_text, order=order, id=order)
-		db_session.add(q)
+		#db_session.add(q)
+		question_set.append(q)
 
-	# load programs into DB
+	# programs
 	program_subclasses = Program.__subclasses__()
 	for c in program_subclasses:
 		program = c()
@@ -57,7 +62,7 @@ def shutdown_session(exception=None):
 
 @app.route('/')
 def index():
-	return render_template('welcome.html')
+	return render_template('question.html', question=question)
 
 def getEligiblePrograms(data):
 	app.logger.info('Calculating eligibility for %s' % data)
@@ -80,7 +85,7 @@ def text():
 	#new user - add to DB and send first Q
 	if not u:
 		app.logger.warning('Adding user to DB with phone number: %s' % from_number)
-		u = User(phone_number=from_number)
+		u = User(phone_number=from_number, questions=question_set)
 		db_session.add(u)
 		db_session.commit()
 
@@ -101,9 +106,8 @@ def text():
 		# valid response, add answer to DB and ask next Q
 		if normalized_response:
 			app.logger.warning('Adding user %s answer to DB: %s' % (u, normalized_response))
-			a = Answer(key=last_question.key, value=normalized_response, question=last_question)
-			u.answers.append(a)
-			db_session.add(a)
+			last_question.answer = normalized_response
+			u.last_question = last_question
 			db_session.add(u)
 			db_session.commit()
 
@@ -111,6 +115,7 @@ def text():
 			next_question = Question.query.filter(Question.order > last_question.order).order_by(Question.order).first()
 			if next_question:
 				sendQuestion(u, next_question)
+				return str(next_question)
 			# if there are no more questions, calculate eligibility
 			else:
 				app.logger.warning('User %s finished all questions' % u)
@@ -148,6 +153,7 @@ def sendMessageTemplate(user, template):
 	message = render_template(template)
 	client.sms.messages.create(to=phone_number, from_="+14155346272",
                                      body=message)
+	return message
 
 def calculateAndGetEligibility(user):
 	app.logger.warning('Calculating eligibility for %s' % user)
@@ -164,10 +170,10 @@ def calculateAndGetEligibility(user):
 
 def getUserDataDict(user):
 	app.logger.warning('Getting data dict for %s' % user)
-	answers = user.answers
+	questions = user.questions
 	data = {}
-	for a in answers:
-		data[a.key] = int(a.value)
+	for q in questions:
+		data[q.key] = int(q.answer)
 	app.logger.warning('Data dict for %s is: %s' % (user, data))
 	return data
 

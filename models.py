@@ -1,15 +1,16 @@
 from sqlalchemy import Table, Column, Integer, ForeignKey, String
 from sqlalchemy.orm import relationship, backref
 from database import Base
+from questions import questions_data
 
 user_programs = Table('user_programs_association', Base.metadata,
 	Column('users_id', Integer, ForeignKey('users.id')),
 	Column('programs_id', Integer, ForeignKey('programs.id'))
 )
 
-user_answers = Table('user_answers_association', Base.metadata,
+user_questions = Table('user_questions_association', Base.metadata,
 	Column('users_id', Integer, ForeignKey('users.id')),
-	Column('answers_id', Integer, ForeignKey('answers.id'))
+	Column('question_id', Integer, ForeignKey('questions.id'))
 )
 
 program_questions = Table('program_questions_association', Base.metadata,
@@ -21,35 +22,38 @@ class User(Base):
 	__tablename__ = 'users'
 	id = Column(Integer, primary_key=True)
 	phone_number = Column(String(50), unique=True)
+	
 	last_question_id = Column(Integer, ForeignKey('questions.id'))
 	last_question = relationship('Question')
+
+	questions = relationship('Question',
+							secondary=user_questions,
+							backref='questions')
 	
 	eligible_programs = relationship('Program',
 							secondary=user_programs,
 							backref='programs')
 
-	answers = relationship('Answer',
-							secondary=user_answers,
-							backref='answers')
-
-	def __init__(self, phone_number=None):
+	def __init__(self, phone_number, questions):
 		self.phone_number = phone_number
+		self.questions = questions
 
 	def __repr__(self):
-		return 'User phone: %r last_question: %r eligible_programs: %r answers: %r' % (
+		return 'User phone: %r last_question: %r eligible_programs: %r' % (
 			self.phone_number,
 			self.last_question_id,
-			self.eligible_programs,
-			self.answers)
+			self.eligible_programs)
 
-# question classes
 class Question(Base):
 	__tablename__ = 'questions'
 	id = Column(Integer, primary_key=True)
-	key = Column(String(160), unique=True)
-	question_text = Column(String(160), unique=True)
+	key = Column(String(160))
+	question_text = Column(String(160))
 	clarification_text = Column(String(160))
+	
+	answer = Column(Integer)
 	order = Column(Integer)
+	answered = Column(Integer)
 	discriminator = Column('type', String(50))
 
 	__mapper_args__ = {'polymorphic_on': discriminator}
@@ -64,6 +68,10 @@ class Question(Base):
 
 	def __repr__(self):
 		return 'Question: %r (%r)' % (self.key, self.order)
+
+	def globalHandler(self, response):
+		# add LEAVE and other global cases...help, finding user questions, restart, etc.
+		return response
 
 	def normalizeResponse(self, response):
 		raise NotImplementedError("Should have implemented this")
@@ -85,35 +93,25 @@ class RangeQuestion(Question):
 
 	__mapper_args__ = {'polymorphic_identity': 'rangequestions'}
 
-	def __init__(self, key, question_text, id=None, clarification_text=None, order=None, answer_min=None, answer_max=None):
-		if id:
-			self.id=id
-		self.key = key
-		self.question_text = question_text
-		self.clarification_text = clarification_text
-		self.order = order
-		self.answer_min = answer_min
-		self.answer_max = answer_max
-
 	def normalizeResponse(self, response):
 		return response
 
 # answer classes
-class Answer(Base):
-	__tablename__ = 'answers'
-	id = Column(Integer, primary_key=True)
-	key = Column(String(160))
-	value = Column(String(50))
-	question_id = Column(Integer, ForeignKey('questions.id'))
-	question = relationship('Question')
+# class Answer(Base):
+# 	__tablename__ = 'answers'
+# 	id = Column(Integer, primary_key=True)
+# 	key = Column(String(160))
+# 	value = Column(String(50))
+# 	question_id = Column(Integer, ForeignKey('questions.id'))
+# 	question = relationship('Question')
 
-	def __init__(self, key, value, question):
-		self.key = key
-		self.value = value
-		self.question = question
+# 	def __init__(self, key, value, question):
+# 		self.key = key
+# 		self.value = value
+# 		self.question = question
 
-	def __repr__(self):
-		return 'Answer: %r' % (self.value)
+# 	def __repr__(self):
+# 		return 'Answer: %r' % (self.value)
 
 # program classes
 class Program(Base):
@@ -125,8 +123,7 @@ class Program(Base):
 	__mapper_args__ = {'polymorphic_on': discriminator}
 	
 	required_questions = relationship('Question',
-							secondary=program_questions,
-							backref='questions')
+							secondary=program_questions)
 
 	def __init__(self, description):
 		self.description = description
