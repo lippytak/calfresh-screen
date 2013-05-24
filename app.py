@@ -153,7 +153,7 @@ def sendMessage(phone_number, message):
 	client = TwilioRestClient(account_sid, auth_token)
 	client.sms.messages.create(to=phone_number, from_="+14155346272",
                                      body=message)
-	time.sleep(2)
+	time.sleep(3)
 
 def calculateAndGetEligibility(user):
 	app.logger.warning('Calculating eligibility for %s' % user)
