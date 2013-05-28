@@ -1,11 +1,8 @@
 import os
 import time
-import logging
 import twilio.twiml
 import json
 from questions import questions_data
-from test_data import test_data
-from sets import Set
 from twilio.rest import TwilioRestClient
 from flask import Flask, request, redirect, session, url_for, render_template
 from flask.ext.sqlalchemy import SQLAlchemy
@@ -23,7 +20,6 @@ question_set = []
 @app.before_first_request
 def setup():
 	# load questions
-	app.logger.warning('LOADING QUESTIONS')
 	yesnoquestions = questions_data['yesnoquestions']
 	for q_data in yesnoquestions:
 		key = q_data['key']
@@ -73,13 +69,13 @@ def text():
 
 	#existing user - parse response and send next Q if valid
 	else:
-		app.logger.warning('Found user %s' % user)
+		app.logger.info('Found user %s' % user)
 		response = handleGlobalText(user, incoming_message)
 		normalized_response = user.last_question.normalizeResponse(response)
 		
 		# valid response, add answer to DB and ask next Q
 		if normalized_response:
-			app.logger.warning('Successfully normalized response to: %s' % normalized_response)
+			app.logger.info('Successfully normalized response to: %s' % normalized_response)
 			addNewAnswer(user, normalized_response)
 
 			# get question with next highest order
@@ -89,7 +85,7 @@ def text():
 
 			# no more questions, all done!
 			else:
-				app.logger.warning('User %s finished all questions' % user)
+				app.logger.info('User %s finished all questions' % user)
 				eligible_programs = calculateAndGetEligibility(user)
 
 				# respond with eligible programs
@@ -114,11 +110,11 @@ def text():
 
 		# invalid response, re-send question for now
 		else:
-			app.logger.warning('Failed to normalize response: %s' % response)
+			app.logger.info('Failed to normalize response: %s' % response)
 			return sendQuestion(user, user.last_question)
 
 def handleGlobalText(user, response):
-	app.logger.warning('Handling incoming msg %s' % response)
+	app.logger.info('Handling incoming msg %s' % response)
 	response = response.strip().lower()
 	if response == 'leave':
 		sendMessageTemplate(user, 'leave.html')
@@ -129,13 +125,13 @@ def handleGlobalText(user, response):
 		return response
 
 def addNewAnswer(user, answer):
-	app.logger.warning('Adding user %s answer to DB: %s' % (user, answer))
+	app.logger.info('Adding user %s answer to DB: %s' % (user, answer))
 	user.last_question.answer = answer
 	db_session.add(user)
 	db_session.commit()
 
 def addAndGetNewUser(phone_number):
-	app.logger.warning('Adding user to DB with phone number: %s' % phone_number)
+	app.logger.info('Adding user to DB with phone number: %s' % phone_number)
 	user = User(phone_number=phone_number, questions=question_set)
 	db_session.add(user)
 	db_session.commit()
@@ -147,7 +143,7 @@ def sendNextQuestion(user):
 	return message
 
 def sendQuestion(user, question):
-	app.logger.warning('Sending user %s the question: %s' % (user, question))
+	app.logger.info('Sending user %s the question: %s' % (user, question))
 	user.last_question = question
 	db_session.add(user)
 	db_session.commit()
@@ -157,7 +153,7 @@ def sendQuestion(user, question):
 
 def sendMessageTemplate(user, template, **kwargs):
 	phone_number = user.phone_number
-	app.logger.warning('Sending phone %s the template: %s' % (phone_number, template))
+	app.logger.info('Sending phone %s the template: %s' % (phone_number, template))
 	
 	context = {}
 	for key, value in kwargs.iteritems():
@@ -172,13 +168,13 @@ def sendMessage(user, message):
 	auth_token = os.environ['AUTH_TOKEN']
 	client = TwilioRestClient(account_sid, auth_token)
 	phone_number = user.phone_number
-	app.logger.warning('Sending phone %s the msg: %s' % (phone_number, message))
+	app.logger.info('Sending phone %s the msg: %s' % (phone_number, message))
 	client.sms.messages.create(to=phone_number, from_="+14155346272",
                                      body=message)
 	time.sleep(5)
 
 def calculateAndGetEligibility(user):
-	app.logger.warning('Calculating eligibility for %s' % user)
+	app.logger.info('Calculating eligibility for %s' % user)
 	programs = Program.query.all()
 	data = getUserDataDict(user)
 	for p in programs:
@@ -187,16 +183,16 @@ def calculateAndGetEligibility(user):
 	db_session.add(user)
 	db_session.commit()
 	eligible_programs = user.eligible_programs
-	app.logger.warning('Eligible programs for %s are: %s' % (user, eligible_programs))
+	app.logger.info('Eligible programs for %s are: %s' % (user, eligible_programs))
 	return eligible_programs
 
 def getUserDataDict(user):
-	app.logger.warning('Getting data dict for %s' % user)
+	app.logger.info('Getting data dict for %s' % user)
 	questions = user.questions
 	data = {}
 	for q in questions:
 		data[q.key] = int(q.answer)
-	app.logger.warning('Data dict for %s is: %s' % (user, data))
+	app.logger.info('Data dict for %s is: %s' % (user, data))
 	return data
 
 if __name__ == '__main__':
