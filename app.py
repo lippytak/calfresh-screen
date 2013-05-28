@@ -1,6 +1,5 @@
 import os
 import time
-import pprint
 import logging
 import twilio.twiml
 import json
@@ -16,6 +15,7 @@ from models import *
 #setup
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
+env = os.environ['ENV']
 
 #globals
 question_set = []
@@ -23,6 +23,7 @@ question_set = []
 @app.before_first_request
 def setup():
 	# load questions
+	app.logger.warning('LOADING QUESTIONS')
 	yesnoquestions = questions_data['yesnoquestions']
 	for q_data in yesnoquestions:
 		key = q_data['key']
@@ -58,7 +59,7 @@ def index():
 @app.route('/text')
 def text():
 	from_number = request.args.get('From')
-	msg = request.args.get('Body')
+	incoming_message = request.args.get('Body')
 	user = User.query.filter_by(phone_number=from_number).first()
 	
 	#new user - add to DB and send first Q
@@ -73,10 +74,12 @@ def text():
 	#existing user - parse response and send next Q if valid
 	else:
 		app.logger.warning('Found user %s' % user)
-		normalized_response = user.last_question.normalizeResponse(msg)
+		response = handleGlobalText(user, incoming_message)
+		normalized_response = user.last_question.normalizeResponse(response)
 		
 		# valid response, add answer to DB and ask next Q
 		if normalized_response:
+			app.logger.warning('Successfully normalized response to: %s' % normalized_response)
 			addNewAnswer(user, normalized_response)
 
 			# get question with next highest order
@@ -91,12 +94,17 @@ def text():
 
 				# respond with eligible programs
 				if eligible_programs:
-					context = {'eligible_programs':eligible_programs}
-					message = sendMessageTemplate(user, 'eligible.html', **context)
+					if len(eligible_programs) == 1:
+						program = eligible_programs[0]
+						context = {'program':program}
+						message = sendMessageTemplate(user, 'eligible-single.html', **context)
+					else:
+						context = {'eligible_programs':eligible_programs}
+						message = sendMessageTemplate(user, 'eligible.html', **context)
 					
 					#respond with more program info
 					for p in eligible_programs:
-						template = str(p.name.lower()) + '.html'
+						template = str(p.name.replace(' ', '').lower()) + '.html'
 						sendMessageTemplate(user, template)
 					return message
 
@@ -106,7 +114,19 @@ def text():
 
 		# invalid response, re-send question for now
 		else:
+			app.logger.warning('Failed to normalize response: %s' % response)
 			return sendQuestion(user, user.last_question)
+
+def handleGlobalText(user, response):
+	app.logger.warning('Handling incoming msg %s' % response)
+	response = response.strip().lower()
+	if response == 'leave':
+		sendMessageTemplate(user, 'leave.html')
+		user.active = 0
+	elif response == 'help':
+		sendMessageTemplate(user, 'help.html')
+	else:
+		return response
 
 def addNewAnswer(user, answer):
 	app.logger.warning('Adding user %s answer to DB: %s' % (user, answer))
@@ -132,7 +152,7 @@ def sendQuestion(user, question):
 	db_session.add(user)
 	db_session.commit()
 	message = question.question_text
-	sendMessage(user.phone_number, message)
+	sendMessage(user, message)
 	return message
 
 def sendMessageTemplate(user, template, **kwargs):
@@ -143,17 +163,19 @@ def sendMessageTemplate(user, template, **kwargs):
 	for key, value in kwargs.iteritems():
 		context[key] = value
 	message = render_template(template, **context)
-	sendMessage(phone_number, message)
+	sendMessage(user, message)
 	return message
 
-def sendMessage(phone_number, message):
-	app.logger.warning('Sending phone %s the msg: %s' % (phone_number, message))
+def sendMessage(user, message):
+	# twilio setup
 	account_sid = os.environ['ACCOUNT_SID']
 	auth_token = os.environ['AUTH_TOKEN']
 	client = TwilioRestClient(account_sid, auth_token)
+	phone_number = user.phone_number
+	app.logger.warning('Sending phone %s the msg: %s' % (phone_number, message))
 	client.sms.messages.create(to=phone_number, from_="+14155346272",
                                      body=message)
-	time.sleep(3)
+	time.sleep(5)
 
 def calculateAndGetEligibility(user):
 	app.logger.warning('Calculating eligibility for %s' % user)
@@ -179,6 +201,8 @@ def getUserDataDict(user):
 
 if __name__ == '__main__':
 	port = int(os.environ.get('PORT', 5000))
-	force_drop_all()
+	if env=='dev':
+		app.logger.warning('DROPPING ALL DB TABLES')
+		force_drop_all()
 	init_db()
 	app.run(host='0.0.0.0', port=port, debug=os.environ['DEBUG'])
