@@ -171,7 +171,7 @@ def sendMessage(user, message):
 	app.logger.info('Sending phone %s the msg: %s' % (phone_number, message))
 	client.sms.messages.create(to=phone_number, from_="+14155346272",
                                      body=message)
-	time.sleep(5)
+	time.sleep(3)
 
 def calculateAndGetEligibility(user):
 	app.logger.info('Calculating eligibility for %s' % user)
