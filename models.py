@@ -1,6 +1,7 @@
 from sqlalchemy import Table, Column, Integer, ForeignKey, String
 from sqlalchemy.orm import relationship, backref
 from database import Base
+import datetime
 
 user_programs = Table('user_programs_association', Base.metadata,
 	Column('users_id', Integer, ForeignKey('users.id')),
@@ -21,7 +22,6 @@ class User(Base):
 	__tablename__ = 'users'
 	id = Column(Integer, primary_key=True)
 	phone_number = Column(String(50), unique=True)
-	active = Column(Integer)
 	
 	last_question_id = Column(Integer, ForeignKey('questions.id'))
 	last_question = relationship('Question')
@@ -37,7 +37,6 @@ class User(Base):
 	def __init__(self, phone_number, questions):
 		self.phone_number = phone_number
 		self.questions = questions
-		self.active = 1
 
 	def __repr__(self):
 		return '<User phone: %r last_question: %r>' % (
@@ -106,7 +105,7 @@ class RangeQuestion(Question):
 			response = int(round(float(response)))
 			return response
 		else:
-			if response[0]=='n' or response[0]=='z':	
+			if response=='none' or response=='zero':
 				return -1
 		return False
 
@@ -186,7 +185,7 @@ class FreeSchoolMeals(Program):
 	__mapper_args__ = {'polymorphic_identity': 'freeschoolmeals'}
 
 	def __init__(self):
-		self.name = 'Free school meals'
+		self.name = 'Free School Meals'
 
 	def calculateEligibility(self, data):
 		annual_income = data['monthly_income'] * 12
@@ -196,6 +195,56 @@ class FreeSchoolMeals(Program):
 		if kid_school == 1 and annual_income <= income_threshold:
 			return True
 		return False
+
+class YouthClipperCard(Program):
+	__tablename__ = 'youthclippercard'
+	id = Column(Integer, ForeignKey('programs.id'), primary_key=True)
+	__mapper_args__ = {'polymorphic_identity': 'youthclippercard'}
+
+	def __init__(self):
+		self.name = 'Youth Clipper Card'
+
+	def calculateEligibility(self, data):
+		age = data['age']
+		public_transport = data['public_transport']
+
+		if age < 18 and age > 5 and public_transport == 1:
+			return True
+		else:
+			return False
+
+class SeniorClipperCard(Program):
+	__tablename__ = 'seniorclippercard'
+	id = Column(Integer, ForeignKey('programs.id'), primary_key=True)
+	__mapper_args__ = {'polymorphic_identity': 'seniorclippercard'}
+
+	def __init__(self):
+		self.name = 'Senior Clipper Card'
+
+	def calculateEligibility(self, data):
+		age = data['age']
+		public_transport = data['public_transport']
+
+		if age >= 65 and public_transport == 1:
+			return True
+		else:
+			return False
+
+class IHHS(Program):
+	__tablename__ = 'ihhs'
+	id = Column(Integer, ForeignKey('programs.id'), primary_key=True)
+	__mapper_args__ = {'polymorphic_identity': 'ihhs'}
+
+	def __init__(self):
+		self.name = 'IHHS'
+
+	def calculateEligibility(self, data):
+		senior_disabled_care = data['senior_disabled_care']
+
+		if senior_disabled_care == 1:
+			return True
+		else:
+			return False
 
 def FPL(household_size):
 	household_size = int(household_size)

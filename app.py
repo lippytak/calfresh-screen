@@ -20,21 +20,25 @@ question_set = []
 @app.before_first_request
 def setup():
 	# load questions
-	yesnoquestions = questions_data['yesnoquestions']
-	for q_data in yesnoquestions:
-		key = q_data['key']
-		order = q_data['order']
-		question_text = q_data['question_text']
-		q = YesNoQuestion(key=key, question_text=question_text, order=order, id=order)
-		question_set.append(q)
-	
-	rangequestions = questions_data['rangequestions']
-	for q_data in rangequestions:
-		key = q_data['key']
-		order = q_data['order']
-		question_text = q_data['question_text']
-		q = RangeQuestion(key=key, question_text=question_text, order=order, id=order)
-		question_set.append(q)
+	last = len(questions_data) - 1
+	for indx, q in enumerate(questions_data):
+		key = q['key']
+		question_text = q['question_text']
+		clarification_text = q['clarification_text']
+		q_type = q['type']
+		
+		order = indx
+		if indx == last:
+			order = 99
+
+		if q_type == 'yesnoquestion':
+			q = YesNoQuestion(key=key, question_text=question_text, order=order, clarification_text=clarification_text)
+		elif q_type == 'rangequestion':
+			q = RangeQuestion(key=key, question_text=question_text, order=order, clarification_text=clarification_text)
+		elif q_type == 'freeresponsequestion':
+			q = FreeResponseQuestion(key=key, question_text=question_text, order=order, clarification_text=clarification_text)
+		db_session.add(q)
+		question_set.append(q)			
 
 	# load programs
 	program_subclasses = Program.__subclasses__()
@@ -50,7 +54,9 @@ def shutdown_session(exception=None):
 
 @app.route('/')
 def index():
-	return render_template('index.html')
+	programs = Program.query.all()
+	return stringifyPrograms(programs)
+	#return render_template('index.html')
 
 @app.route('/text')
 def text():
@@ -79,10 +85,10 @@ def text():
 			addNewAnswer(user, normalized_response)
 
 			# get question with next highest order
-			next_question = user.getNextQuestion()
-			if next_question:
-				return sendQuestion(user, next_question)
-
+			message = sendNextQuestion(user)
+			if message:
+				return message
+			
 			# no more questions, all done!
 			else:
 				app.logger.info('User %s finished all questions' % user)
@@ -90,15 +96,12 @@ def text():
 
 				# respond with eligible programs
 				if eligible_programs:
-					if len(eligible_programs) == 1:
-						program = eligible_programs[0]
-						context = {'program':program}
-						message = sendMessageTemplate(user, 'eligible-single.html', **context)
-					else:
-						context = {'eligible_programs':eligible_programs}
-						message = sendMessageTemplate(user, 'eligible.html', **context)
+					eligible_programs_description = stringifyPrograms(eligible_programs)
+					context = {'eligible_programs_description':eligible_programs_description}
+					message = sendMessageTemplate(user, 'eligible.html', **context)
 					
 					#respond with more program info
+					time.sleep(3)
 					for p in eligible_programs:
 						template = str(p.name.replace(' ', '').lower()) + '.html'
 						sendMessageTemplate(user, template)
@@ -111,18 +114,47 @@ def text():
 		# invalid response, re-send question for now
 		else:
 			app.logger.info('Failed to normalize response: %s' % response)
-			return sendQuestion(user, user.last_question)
+			return sendClarification(user, user.last_question)
 
 def handleGlobalText(user, response):
 	app.logger.info('Handling incoming msg %s' % response)
 	response = response.strip().lower()
-	if response == 'leave':
-		sendMessageTemplate(user, 'leave.html')
-		user.active = 0
-	elif response == 'help':
+	if response == 'help':
 		sendMessageTemplate(user, 'help.html')
 	else:
 		return response
+
+def stringifyPrograms(eligible_programs):
+	#32 char max
+	descrip_words = []
+
+	count = len(eligible_programs)
+	last = count - 1
+	if count == 1:
+		return eligible_programs[0].name
+	
+	for indx, p in enumerate(eligible_programs):
+		if indx == last:
+			descrip_words.append('and ')
+			descrip_words.append(p.name)
+		else:
+			descrip_words.append(p.name)
+			descrip_words.append(', ')
+
+	descrip = ''.join(descrip_words)
+	if len(descrip) > 30:
+		return 'a few city services'
+	else:
+		return descrip
+
+def getEligibilityTemplate(eligible_programs):
+	context = {'eligible_programs':eligible_programs}
+	if len(eligible_programs) == 1:
+		return 'eligible-single.html'
+	elif len(render_template('eligible.html', **context)) > 160:
+		return 'eligible-multiple.html'
+	else:
+		return 'eligible.html'
 
 def addNewAnswer(user, answer):
 	app.logger.info('Adding user %s answer to DB: %s' % (user, answer))
@@ -139,8 +171,14 @@ def addAndGetNewUser(phone_number):
 
 def sendNextQuestion(user):
 	next_question = user.getNextQuestion()
-	message = sendQuestion(user, next_question)
-	return message
+	if next_question:
+		message = sendQuestion(user, next_question)
+		return message
+	else:
+		user.finished = 1
+		db_session.add(user)
+		db_session.commit()
+		return None
 
 def sendQuestion(user, question):
 	app.logger.info('Sending user %s the question: %s' % (user, question))
@@ -150,6 +188,17 @@ def sendQuestion(user, question):
 	message = question.question_text
 	sendMessage(user, message)
 	return message
+
+def sendClarification(user, question):
+	app.logger.info('Sending user %s question clarification: %s' % (user, question))
+	db_session.add(user)
+	db_session.commit()
+	message = question.clarification_text
+	if not message:
+		message = question.question_text
+	sendMessage(user, message)
+	return message
+
 
 def sendMessageTemplate(user, template, **kwargs):
 	phone_number = user.phone_number
