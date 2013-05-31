@@ -56,6 +56,12 @@ def shutdown_session(exception=None):
 def index():
 	return render_template('index.html')
 
+@app.route('/reset_database')
+def index():
+	app.logger.warning('DROPPING ALL DB TABLES')
+	force_drop_all()
+	return 'DB reset'
+
 @app.route('/text')
 def text():
 	from_number = request.args.get('From')
@@ -247,5 +253,6 @@ if __name__ == '__main__':
 	if env=='dev':
 		app.logger.warning('DROPPING ALL DB TABLES')
 		force_drop_all()
+
 	init_db()
 	app.run(host='0.0.0.0', port=port, debug=os.environ['DEBUG'])
