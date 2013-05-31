@@ -54,9 +54,7 @@ def shutdown_session(exception=None):
 
 @app.route('/')
 def index():
-	programs = Program.query.all()
-	return stringifyPrograms(programs)
-	#return render_template('index.html')
+	return render_template('index.html')
 
 @app.route('/text')
 def text():
