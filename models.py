@@ -51,6 +51,11 @@ class User(Base):
 		next_question = future_questions[0] if future_questions else None
 		return next_question
 
+	def reset(self):
+		self.questions = []
+		self.state == 'reset'
+		self.last_question = None
+
 class Question(Base):
 	__tablename__ = 'questions'
 	id = Column(Integer, primary_key=True)

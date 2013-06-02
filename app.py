@@ -63,7 +63,7 @@ def text():
 	user = User.query.filter_by(phone_number=from_number).first()
 	
 	#new user - add to DB and send first Q
-	if not user:
+	if not user or user.state == 'reset':
 		user = addAndGetNewUser(from_number)
 
 		#send welcome msg and first question
@@ -129,6 +129,11 @@ def handleGlobalText(user, response):
 	response = response.strip().lower()
 	if response == 'help':
 		sendMessageTemplate(user, 'help.html')
+	elif response == 'reset':
+		sendMessageTemplate(user, 'reset.html')
+		db_session.delete(user)
+		db_session.commit()
+		return
 	else:
 		return response
 
@@ -191,6 +196,7 @@ def sendNextQuestion(user):
 def sendQuestion(user, question):
 	app.logger.info('Sending user %s the question: %s' % (user, question))
 	user.last_question = question
+	user.state == 'answering-questions'
 	db_session.add(user)
 	db_session.commit()
 	message = question.question_text
