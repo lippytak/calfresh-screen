@@ -22,6 +22,7 @@ class User(Base):
 	__tablename__ = 'users'
 	id = Column(Integer, primary_key=True)
 	phone_number = Column(String(50), unique=True)
+	state = Column(String(50))
 	
 	last_question_id = Column(Integer, ForeignKey('questions.id'))
 	last_question = relationship('Question')
@@ -37,6 +38,7 @@ class User(Base):
 	def __init__(self, phone_number, questions):
 		self.phone_number = phone_number
 		self.questions = questions
+		self.state = 'answering-questions'
 
 	def __repr__(self):
 		return '<User phone: %r last_question: %r>' % (

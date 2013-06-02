@@ -75,44 +75,54 @@ def text():
 	else:
 		app.logger.info('Found user %s' % user)
 		response = handleGlobalText(user, incoming_message)
-		normalized_response = user.last_question.normalizeResponse(response)
+
+		# if finished, log feedback 
+		if user.state == 'finished':
+			return sendMessageTemplate(user, 'feedback.html')
+
+		# if answering-questions, normalize response, send next Q
+		elif user.state == 'answering-questions':
+			normalized_response = user.last_question.normalizeResponse(response)
 		
 		# valid response, add answer to DB and ask next Q
-		if normalized_response:
-			app.logger.info('Successfully normalized response to: %s' % normalized_response)
-			addNewAnswer(user, normalized_response)
+			if normalized_response:
+				app.logger.info('Successfully normalized response to: %s' % normalized_response)
+				addNewAnswer(user, normalized_response)
 
-			# get question with next highest order
-			message = sendNextQuestion(user)
-			if message:
-				return message
-			
-			# no more questions, all done!
-			else:
-				app.logger.info('User %s finished all questions' % user)
-				eligible_programs = calculateAndGetEligibility(user)
-
-				# respond with eligible programs
-				if eligible_programs:
-					eligible_programs_description = stringifyPrograms(eligible_programs)
-					context = {'eligible_programs_description':eligible_programs_description}
-					message = sendMessageTemplate(user, 'eligible.html', **context)
-					
-					#respond with more program info
-					time.sleep(3)
-					for p in eligible_programs:
-						template = str(p.name.replace(' ', '').lower()) + '.html'
-						sendMessageTemplate(user, template)
+				# get question with next highest order
+				message = sendNextQuestion(user)
+				if message:
 					return message
-
-				# no eligible programs
+			
+				# no more questions, all done!
 				else:
-					return sendMessageTemplate(user, 'not-eligible.html')
+					app.logger.info('User %s finished all questions' % user)
+					eligible_programs = calculateAndGetEligibility(user)
+					user.state = 'finished'
+					db_session.add(user)
+					db_session.commit()
 
-		# invalid response, re-send question for now
-		else:
-			app.logger.info('Failed to normalize response: %s' % response)
-			return sendClarification(user, user.last_question)
+					# respond with eligible programs
+					if eligible_programs:
+						eligible_programs_description = stringifyPrograms(eligible_programs)
+						context = {'eligible_programs_description':eligible_programs_description}
+						message = sendMessageTemplate(user, 'eligible.html', **context)
+						
+						#respond with more program info
+						time.sleep(3)
+						for p in eligible_programs:
+							template = str(p.name.replace(' ', '').lower()) + '.html'
+							sendMessageTemplate(user, template)
+						return message
+
+					# no eligible programs
+					else:
+						return sendMessageTemplate(user, 'not-eligible.html')
+
+			# invalid response, re-send question for now
+			else:
+				app.logger.info('Failed to normalize response: %s' % response)
+				return sendClarification(user, user.last_question)
 
 def handleGlobalText(user, response):
 	app.logger.info('Handling incoming msg %s' % response)
