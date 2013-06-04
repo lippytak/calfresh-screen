@@ -141,12 +141,9 @@ def handleGlobalText(user, response):
 	if response == 'help':
 		sendMessageTemplate(user, 'help.html')
 	elif response == 'reset':
-		sendMessageTemplate(user, 'reset.html')
 		db_session.delete(user)
 		db_session.commit()
-		return
-	else:
-		return response
+	return response
 
 def stringifyPrograms(eligible_programs):
 	#32 char max
