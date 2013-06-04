@@ -56,76 +56,87 @@ def shutdown_session(exception=None):
 def index():
 	return render_template('index.html')
 
+
 @app.route('/text')
 def text():
+	# get info from twilio
 	from_number = request.args.get('From')
-	incoming_message = request.args.get('Body')
 	user = User.query.filter_by(phone_number=from_number).first()
-	
-	#new user - add to DB and send first Q
-	if not user or user.state == 'reset':
-		user = addAndGetNewUser(from_number)
+	incoming_message = request.args.get('Body')
 
-		#send welcome msg and first question
-		welcome_message = sendMessageTemplate(user, 'welcome.html')
-		message = sendNextQuestion(user)
-		return 'welcome:%s | first question: %s' % (welcome_message, message)
+	#handle global text
+	response = handleGlobalText(user, incoming_message)
 
-	#existing user - parse response and send next Q if valid
-	else:
-		app.logger.info('Found user %s' % user)
-		response = handleGlobalText(user, incoming_message)
+	while True:
+		#new user
+		if not user:
+			app.logger.info('ENTER STATE: NEW-USER')
+			user = addAndGetNewUser(from_number)
+			welcome_message = sendMessageTemplate(user, 'welcome.html')
+			message = sendNextQuestion(user)
+			user.state = 'ANSWERING-QUESTIONS'
+			break
+		
+		elif user.state == 'ANSWERING-QUESTIONS':
+			app.logger.info('ENTER STATE: ANSWERING-QUESTIONS')
+			normalized_response = user.last_question.normalizeResponse(response)
+			user.state = 'VALID-RESPONSE' if normalized_response else 'INVALID-RESPONSE'
+			
+		elif user.state == 'VALID-RESPONSE':
+			app.logger.info('ENTER STATE: VALID-RESPONSE')
+			#log answer
+			addNewAnswer(user, normalized_response)
 
-		# if finished, log feedback 
-		if user.state == 'finished':
+			#next q
+			next_question = sendNextQuestion(user)
+			if next_question:
+				user.state = 'ANSWERING-QUESTIONS'
+				return next_question
+			else:
+				user.state = 'DONE-WITH-QUESTIONS'
+
+		elif user.state == 'INVALID-RESPONSE':
+			app.logger.info('ENTER STATE: INVALID-RESPONSE')
+			return sendClarification(user, user.last_question)
+
+		elif user.state == 'DONE-WITH-QUESTIONS':
+			app.logger.info('DONE-WITH-QUESTIONS')
+			#send eligibility info
+			eligible_programs = calculateAndGetEligibility(user)
+			user.state = 'ELIGIBLE' if eligible_programs else 'NOT-ELIGIBLE'
+
+		elif user.state == 'ELIGIBLE':
+			app.logger.info('ENTER STATE: ELIGIBLE')
+			eligible_programs_description = stringifyPrograms(eligible_programs)
+			context = {'eligible_programs_description':eligible_programs_description}
+			message = sendMessageTemplate(user, 'eligible.html', **context)
+			user.state = 'FEEDBACK'
+			
+			for p in eligible_programs:
+				template = str(p.name.replace(' ', '').lower()) + '.html'
+				sendMessageTemplate(user, template)
+			return message
+
+		elif user.state == 'NOT-ELIGIBLE':
+			app.logger.info('ENTER STATE: NOT-ELIGIBLE')
+			user.state = 'FEEDBACK'
+			return sendMessageTemplate(user, 'not-eligible.html')
+
+		elif user.state == 'FEEDBACK':
+			app.logger.info('ENTER STATE: FEEDBACK')
 			return sendMessageTemplate(user, 'feedback.html')
 
-		# if answering-questions, normalize response, send next Q
-		elif user.state == 'answering-questions':
-			normalized_response = user.last_question.normalizeResponse(response)
-		
-		# valid response, add answer to DB and ask next Q
-			if normalized_response:
-				app.logger.info('Successfully normalized response to: %s' % normalized_response)
-				addNewAnswer(user, normalized_response)
-
-				# get question with next highest order
-				message = sendNextQuestion(user)
-				if message:
-					return message
-			
-				# no more questions, all done!
-				else:
-					app.logger.info('User %s finished all questions' % user)
-					eligible_programs = calculateAndGetEligibility(user)
-					user.state = 'finished'
-					db_session.add(user)
-					db_session.commit()
-
-					# respond with eligible programs
-					if eligible_programs:
-						eligible_programs_description = stringifyPrograms(eligible_programs)
-						context = {'eligible_programs_description':eligible_programs_description}
-						message = sendMessageTemplate(user, 'eligible.html', **context)
-						
-						#respond with more program info
-						time.sleep(3)
-						for p in eligible_programs:
-							template = str(p.name.replace(' ', '').lower()) + '.html'
-							sendMessageTemplate(user, template)
-						return message
-
-					# no eligible programs
-					else:
-						return sendMessageTemplate(user, 'not-eligible.html')
-
-			# invalid response, re-send question for now
-			else:
-				app.logger.info('Failed to normalize response: %s' % response)
-				return sendClarification(user, user.last_question)
+	db_session.add(user)
+	db_session.commit()
 
 def handleGlobalText(user, response):
 	app.logger.info('Handling incoming msg %s' % response)
+
+	#new user
+	if not user:
+		return response
+
+	#existing user
 	response = response.strip().lower()
 	if response == 'help':
 		sendMessageTemplate(user, 'help.html')

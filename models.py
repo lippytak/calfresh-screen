@@ -203,40 +203,6 @@ class FreeSchoolMeals(Program):
 			return True
 		return False
 
-class YouthClipperCard(Program):
-	__tablename__ = 'youthclippercard'
-	id = Column(Integer, ForeignKey('programs.id'), primary_key=True)
-	__mapper_args__ = {'polymorphic_identity': 'youthclippercard'}
-
-	def __init__(self):
-		self.name = 'Youth Clipper Card'
-
-	def calculateEligibility(self, data):
-		age = data['age']
-		public_transport = data['public_transport']
-
-		if age < 18 and age > 5 and public_transport == 1:
-			return True
-		else:
-			return False
-
-class SeniorClipperCard(Program):
-	__tablename__ = 'seniorclippercard'
-	id = Column(Integer, ForeignKey('programs.id'), primary_key=True)
-	__mapper_args__ = {'polymorphic_identity': 'seniorclippercard'}
-
-	def __init__(self):
-		self.name = 'Senior Clipper Card'
-
-	def calculateEligibility(self, data):
-		age = data['age']
-		public_transport = data['public_transport']
-
-		if age >= 65 and public_transport == 1:
-			return True
-		else:
-			return False
-
 class IHHS(Program):
 	__tablename__ = 'ihhs'
 	id = Column(Integer, ForeignKey('programs.id'), primary_key=True)
