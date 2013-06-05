@@ -129,6 +129,8 @@ def text():
 	db_session.add(user)
 	db_session.commit()
 
+# utils
+
 def handleGlobalText(user, response):
 	app.logger.info('Handling incoming msg %s' % response)
 

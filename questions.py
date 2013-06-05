@@ -19,8 +19,8 @@ questions_data = [
     },
     {
       "key": "kid_school",
-      "question_text": "Do you have any kids who are in school?",
-      "clarification_text": "Do you have any kids 18 or younger who are in school? Text YES or NO.",
+      "question_text": "Do you have any kids who go to SF public schools?",
+      "clarification_text": "Do you have any kids who are currently enrolled in a SF public school? Text YES or NO.",
       "type":"yesnoquestion"
     },
     {
@@ -35,10 +35,10 @@ questions_data = [
       "clarification_text": "Do you have health insurance right now? Text YES or NO.",
       "type":"yesnoquestion"
     },
-     {
-      "key": "public_transport",
-      "question_text": "Do you ride public transportation often?",
-      "clarification_text": "Do you ride Muni, BART, or Caltrain often? Text YES or NO.",
+    {
+      "key": "help",
+      "question_text": "Is there anything else you need help with? Do you have any questions?",
+      "clarification_text": "Is there anything else you need help with? Do you have any questions? Text anything. We can't reply but we promise to read it.",
       "type":"yesnoquestion"
     }
 ]

@@ -131,12 +131,8 @@ class Program(Base):
 	id = Column(Integer, primary_key=True)
 	name = description = Column(String(50), unique=True)
 	discriminator = Column('type', String(50))
-
 	__mapper_args__ = {'polymorphic_on': discriminator}
 	
-	# required_questions = relationship('Question',
-	# 						secondary=program_questions)
-
 	def __init__(self, name):
 		self.name = name
 
@@ -168,23 +164,47 @@ class Calfresh(Program):
 		return self.BASE_INCOME_THRESHOLD + ((house_size-1) * 377)
 
 class Medical(Program):
-	__tablename__ = 'medicaid'
+	__tablename__ = 'medical'
 	id = Column(Integer, ForeignKey('programs.id'), primary_key=True)
-	__mapper_args__ = {'polymorphic_identity': 'medicaid'}
+	__mapper_args__ = {'polymorphic_identity': 'medical'}
 
 	def __init__(self):
 		self.name = 'Medi-Cal'
 
 	def calculateEligibility(self, data):
 		annual_income = data['monthly_income'] * 12
-		health_insurance = data['health_insurance']
 		house_size = data['house_size']
-		income_threshold = FPL(house_size) * 1.33
-		
-		if annual_income <= income_threshold and health_insurance == -1:
+		health_insurance = data['health_insurance']
+		income_threshold = FPL(house_size) * 1.38
+
+		if health_insurance == 1 and annual_income <= income_threshold:
 			return True
 		else:
 			return False
+
+
+class HealthySF(Program):
+	__tablename__ = 'healthysf'
+	id = Column(Integer, ForeignKey('programs.id'), primary_key=True)
+	__mapper_args__ = {'polymorphic_identity': 'healthysf'}
+
+	def __init__(self):
+		self.name = 'Healthy SF'
+
+	def calculateEligibility(self, data):
+		annual_income = data['monthly_income'] * 12
+		house_size = data['house_size']
+		health_insurance = data['health_insurance']
+		income_threshold = FPL(house_size) * 5
+		income_floor = FPL(house_size) * 1.38
+
+		if (health_insurance == 1 and
+			annual_income <= income_threshold and
+			annual_income > income_floor): # should go to Medi-Cal instead
+			return True
+		else:
+			return False
+
 
 class FreeSchoolMeals(Program):
 	__tablename__ = 'freeschoolmeals'
@@ -203,35 +223,55 @@ class FreeSchoolMeals(Program):
 			return True
 		return False
 
-class IHHS(Program):
-	__tablename__ = 'ihhs'
+class FreeSchoolMeals(Program):
+	__tablename__ = 'freeschoolmeals'
 	id = Column(Integer, ForeignKey('programs.id'), primary_key=True)
-	__mapper_args__ = {'polymorphic_identity': 'ihhs'}
+	__mapper_args__ = {'polymorphic_identity': 'freeschoolmeals'}
 
 	def __init__(self):
-		self.name = 'IHHS'
+		self.name = 'Free School Meals'
 
 	def calculateEligibility(self, data):
-		senior_disabled_care = data['senior_disabled_care']
-
-		if senior_disabled_care == 1:
+		annual_income = data['monthly_income'] * 12
+		house_size = data['house_size']
+		kid_school = data['kid_school']
+		income_threshold = FPL(house_size) * 1.85
+		if kid_school == 1 and annual_income <= income_threshold:
 			return True
-		else:
-			return False
+		return False
 
-def FPL(household_size):
+class CAP(Program):
+	__tablename__ = 'cap'
+	id = Column(Integer, ForeignKey('programs.id'), primary_key=True)
+	__mapper_args__ = {'polymorphic_identity': 'cap'}
+
+	def __init__(self):
+		self.name = 'CAP'
+
+	def calculateEligibility(self, data):
+		annual_income = data['monthly_income'] * 12
+		house_size = data['house_size']
+		income_threshold = self.calculateIncomeThreshold(self, house_size)
+		return True if annual_income <= income_threshold else False
+
+	def calcIncomeThreshold(self, house_size):
+		base = 30260 #for families of 1 and 2
+		increment = 7920
+		return base + (max(0, (house_size-2)) * increment)
+
+class WIC(Program):
+	__tablename__ = 'wic'
+	id = Column(Integer, ForeignKey('programs.id'), primary_key=True)
+	__mapper_args__ = {'polymorphic_identity': 'wic'}
+
+	def __init__(self):
+		self.name = 'WIC'
+
+	def calculateEligibility(self, data):
+		pass
+# utils
+
+def FPL(house_size):
+	base = 11490
 	household_size = int(household_size)
-	FPL = {
-		1:11490,
-		2:15510,
-		3:19530,
-		4:23550,
-		5:27570,
-		6:31590,
-		7:35610,
-		8:39630
-		}
-	if household_size <= 8:
-		return FPL[household_size]
-	else:
-		return FPL[household_size] + (4020 * household_size-8)
+	return base + (max(0, (house_size-1)) * 4020)
