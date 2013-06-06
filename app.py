@@ -16,10 +16,6 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
 env = os.environ['ENV']
 
-#globals
-question_set = []
-program_set = []
-
 @app.before_first_request
 def setup():
 	# load questions
@@ -37,14 +33,12 @@ def setup():
 		elif q_type == 'freeresponsequestion':
 			q = FreeResponseQuestion(key=key, question_text=question_text, order=order, clarification_text=clarification_text)
 		db_session.add(q)
-		question_set.append(q)			
+		question_set.append(q)
 
 	# load programs
-	program_subclasses = Program.__subclasses__()
-	for c in program_subclasses:
-		program = c()
-		db_session.add(program)
-
+	programs = [Calfresh(), Medical(), HealthySF(), FreeSchoolMeals(), CAP(), WIC()]
+	for p in programs:
+		db_session.add(p)
 	db_session.commit()
 
 @app.teardown_request
