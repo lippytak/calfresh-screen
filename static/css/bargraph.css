@@ -1,7 +1,15 @@
-.chart {
-  margin: 5px;
+.chart div {
+  font: 10px sans-serif;
+  background-color: steelblue;
+  text-align: right;
+  padding: 3px;
+  margin: 1px;
+  color: white;
 }
- 
+
+.cart {
+  margin: 5px;
+} 
 .chart rect {
   stroke: white;
   fill: steelblue;
@@ -22,8 +30,22 @@
 .chart .rule {
   fill: #000;
 }
- 
-/* removed the while stroke as we don't need it anymore */
-#step-5 .chart rect {
-  stroke: none;
+
+svg {
+  font: 10px sans-serif;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.bar {
+  fill: steelblue;
+}
+
+.x.axis path {
+  display: none;
 }

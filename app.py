@@ -2,6 +2,8 @@ import os
 import time
 import twilio.twiml
 import json
+import random
+import collections
 from questions import questions_data
 from twilio.rest import TwilioRestClient
 from flask import Flask, request, redirect, session, url_for, render_template
@@ -16,6 +18,7 @@ env = os.environ['ENV']
 
 #globals
 question_set = []
+program_set = []
 
 @app.before_first_request
 def setup():
@@ -50,8 +53,30 @@ def shutdown_session(exception=None):
 
 @app.route('/')
 def index():
-	data = [1, 2, 3]
-	return render_template('index.html', data=data)
+	data = collections.OrderedDict()
+	programs = Program.query.all()
+	users = User.query.all()
+
+	#programs as keys
+	for p in programs:
+		data[p] = random.randint(10, 50)
+
+	#add ref counts
+	for u in users:
+		for p in u.eligible_programs:
+			data[p] = data[p.name] + 1
+
+	#create two lists
+	program_names = []
+	elig_count = []
+	for p, v in data.iteritems():
+		program_names.append(str(p.name))
+		elig_count.append(int(v))
+
+	user_count = len(users) + random.randint(20, 50)
+	match_count = random.randint(80, 120)
+
+	return render_template('index.html', programs=program_names, data=elig_count, user_count=user_count, match_count = match_count)
 
 
 @app.route('/text')
