@@ -16,6 +16,9 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
 env = os.environ['ENV']
 
+#globals
+question_set = []
+
 @app.before_first_request
 def setup():
 	# load questions
@@ -32,6 +35,7 @@ def setup():
 			q = RangeQuestion(key=key, question_text=question_text, order=order, clarification_text=clarification_text)
 		elif q_type == 'freeresponsequestion':
 			q = FreeResponseQuestion(key=key, question_text=question_text, order=order, clarification_text=clarification_text)
+		question_set.append(q)
 		db_session.add(q)
 
 	# load programs
