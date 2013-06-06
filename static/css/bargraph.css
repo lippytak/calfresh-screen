@@ -1,0 +1,29 @@
+.chart {
+  margin: 5px;
+}
+ 
+.chart rect {
+  stroke: white;
+  fill: steelblue;
+}
+ 
+.chart text {
+  fill: white;
+}
+ 
+.chart text.name {
+  fill: #000;
+}
+ 
+.chart line {
+  stroke: #c1c1c1;
+}
+ 
+.chart .rule {
+  fill: #000;
+}
+ 
+/* removed the while stroke as we don't need it anymore */
+#step-5 .chart rect {
+  stroke: none;
+}

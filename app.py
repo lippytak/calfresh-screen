@@ -50,7 +50,8 @@ def shutdown_session(exception=None):
 
 @app.route('/')
 def index():
-	return render_template('index.html')
+	data = [1, 2, 3]
+	return render_template('index.html', data=data)
 
 
 @app.route('/text')
