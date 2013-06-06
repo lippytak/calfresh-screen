@@ -20,7 +20,6 @@ question_set = []
 @app.before_first_request
 def setup():
 	# load questions
-	last = len(questions_data) - 1
 	for indx, q in enumerate(questions_data):
 		key = q['key']
 		question_text = q['question_text']
@@ -28,9 +27,6 @@ def setup():
 		q_type = q['type']
 		
 		order = indx
-		if indx == last:
-			order = 99
-
 		if q_type == 'yesnoquestion':
 			q = YesNoQuestion(key=key, question_text=question_text, order=order, clarification_text=clarification_text)
 		elif q_type == 'rangequestion':

@@ -2,6 +2,7 @@ from sqlalchemy import Table, Column, Integer, ForeignKey, String
 from sqlalchemy.orm import relationship, backref
 from database import Base
 import datetime
+import re
 
 user_programs = Table('user_programs_association', Base.metadata,
 	Column('users_id', Integer, ForeignKey('users.id')),
@@ -10,11 +11,6 @@ user_programs = Table('user_programs_association', Base.metadata,
 
 user_questions = Table('user_questions_association', Base.metadata,
 	Column('users_id', Integer, ForeignKey('users.id')),
-	Column('question_id', Integer, ForeignKey('questions.id'))
-)
-
-program_questions = Table('program_questions_association', Base.metadata,
-	Column('program_id', Integer, ForeignKey('programs.id')),
 	Column('question_id', Integer, ForeignKey('questions.id'))
 )
 
@@ -50,11 +46,6 @@ class User(Base):
 		future_questions = sorted([q for q in self.questions if q.order > last_question_order], key=lambda question: question.order)
 		next_question = future_questions[0] if future_questions else None
 		return next_question
-
-	def reset(self):
-		self.questions = []
-		self.state == 'reset'
-		self.last_question = None
 
 class Question(Base):
 	__tablename__ = 'questions'
@@ -108,13 +99,14 @@ class RangeQuestion(Question):
 
 	def normalizeResponse(self, response):
 		response = response.strip().replace(',', '').lower()
+		response = response.replace('$', '')
 		if response.isdigit():
 			response = int(round(float(response)))
 			return response
-		else:
-			if response=='none' or response=='zero':
+		elif response == 'none' or response == 'zero':
 				return -1
-		return False
+		else:
+			return False
 
 class FreeResponseQuestion(Question):
 	__tablename__ = 'freeresponsequestions'
@@ -182,7 +174,6 @@ class Medical(Program):
 		else:
 			return False
 
-
 class HealthySF(Program):
 	__tablename__ = 'healthysf'
 	id = Column(Integer, ForeignKey('programs.id'), primary_key=True)
@@ -205,23 +196,6 @@ class HealthySF(Program):
 		else:
 			return False
 
-
-class FreeSchoolMeals(Program):
-	__tablename__ = 'freeschoolmeals'
-	id = Column(Integer, ForeignKey('programs.id'), primary_key=True)
-	__mapper_args__ = {'polymorphic_identity': 'freeschoolmeals'}
-
-	def __init__(self):
-		self.name = 'Free School Meals'
-
-	def calculateEligibility(self, data):
-		annual_income = data['monthly_income'] * 12
-		house_size = data['house_size']
-		kid_school = data['kid_school']
-		income_threshold = FPL(house_size) * 1.85
-		if kid_school == 1 and annual_income <= income_threshold:
-			return True
-		return False
 
 class FreeSchoolMeals(Program):
 	__tablename__ = 'freeschoolmeals'
@@ -268,9 +242,17 @@ class WIC(Program):
 		self.name = 'WIC'
 
 	def calculateEligibility(self, data):
-		pass
-# utils
+		annual_income = data['monthly_income'] * 12
+		house_size = data['house_size']
+		pregnant_or_baby = data['pregnant_or_baby']
+		income_threshold = FPL(house_size) * 1.85
 
+		if pregnant_or_baby == 1 and annual_income <= income_threshold:
+			return True
+		return False
+
+
+# utils
 def FPL(house_size):
 	base = 11490
 	household_size = int(household_size)

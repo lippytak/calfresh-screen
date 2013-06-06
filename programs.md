@@ -10,7 +10,8 @@ CalFresh helps families buy food. You can apply over the phone by calling (415) 
 
 ## MediCal and HealthySF
 **eligibility**
-- 
+- As of Jan 2014, MediCal will be available to most uninsured < 138% FPL
+- Healthy SF provides subsidies for uninsured <500% FPL. There's also an asset test, but info@healthysanfrancisco.org would not share the number/formula.
 
 **sources**
 - [www.healthysanfrancisco.org/visitors/](http://www.healthysanfrancisco.org/visitors/)
@@ -25,6 +26,7 @@ CalFresh helps families buy food. You can apply over the phone by calling (415) 
 - [Online application](https://schoolmealapp.sfusd.edu/)
 - [FAQ](https://schoolmealapp.sfusd.edu/faq.aspx)
 - [School district info](http://www.sfusd.edu/en/nutrition-school-meals/meal-prices-and-payment.html)
+- (FPL income guideline)[http://www.hcphes.org/dccp/Nutrition/WIC/WIC_Eligibility.htm]
 
 ## Community Assistance Program (CAP)
 Discounted utilities
@@ -36,10 +38,15 @@ Discounted utilities
 
 ## WIC
 **eligibility**
-- 
+- Pregnant of have <5 year old
+- and < 185% FPL
+- and live in state of application
+- nutrition risk (bad diet or diet-related disease)
 
 **sources**
--
+- [FNS](http://www.fns.usda.gov/wic/howtoapply/eligibilityrequirements.htm)
+- [FNS income guidelines](http://www.fns.usda.gov/wic/howtoapply/incomeguidelines12-13.htm)
+- [SF DPH](http://www.sfdph.org/dph/comupg/oprograms/PHP/wic/wic.asp)
 
 ## Future
 - Discounted senior/youth/disabled muni passes
