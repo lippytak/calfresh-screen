@@ -33,12 +33,13 @@ def setup():
 		elif q_type == 'freeresponsequestion':
 			q = FreeResponseQuestion(key=key, question_text=question_text, order=order, clarification_text=clarification_text)
 		db_session.add(q)
-		question_set.append(q)
 
 	# load programs
 	programs = [Calfresh(), Medical(), HealthySF(), FreeSchoolMeals(), CAP(), WIC()]
 	for p in programs:
 		db_session.add(p)
+	
+	#commit everything
 	db_session.commit()
 
 @app.teardown_request
