@@ -54,7 +54,7 @@ class Question(Base):
 	question_text = Column(String(160))
 	clarification_text = Column(String(160))
 	
-	answer = Column(Integer)
+	answer = Column(String(1000))
 	order = Column(Integer)
 	discriminator = Column('type', String(50))
 
@@ -115,7 +115,7 @@ class FreeResponseQuestion(Question):
 	__mapper_args__ = {'polymorphic_identity': 'freeresponsequestions'}
 
 	def normalizeResponse(self, response):
-		return True
+		return response
 
 # program classes
 class Program(Base):
@@ -225,7 +225,7 @@ class CAP(Program):
 	def calculateEligibility(self, data):
 		annual_income = data['monthly_income'] * 12
 		house_size = data['house_size']
-		income_threshold = self.calculateIncomeThreshold(self, house_size)
+		income_threshold = self.calcIncomeThreshold(house_size)
 		return True if annual_income <= income_threshold else False
 
 	def calcIncomeThreshold(self, house_size):
@@ -255,5 +255,5 @@ class WIC(Program):
 # utils
 def FPL(house_size):
 	base = 11490
-	household_size = int(household_size)
+	house_size = int(house_size)
 	return base + (max(0, (house_size-1)) * 4020)

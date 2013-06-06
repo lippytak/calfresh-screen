@@ -71,28 +71,41 @@ def text():
 			welcome_message = sendMessageTemplate(user, 'welcome.html')
 			message = sendNextQuestion(user)
 			user.state = 'ANSWERING-QUESTIONS'
-			break
-		
+			db_session.add(user)
+			db_session.commit()
+			return message
+
 		elif user.state == 'ANSWERING-QUESTIONS':
 			app.logger.info('ENTER STATE: ANSWERING-QUESTIONS')
 			normalized_response = user.last_question.normalizeResponse(response)
 			user.state = 'VALID-RESPONSE' if normalized_response else 'INVALID-RESPONSE'
+			db_session.add(user)
+			db_session.commit()
 			
 		elif user.state == 'VALID-RESPONSE':
 			app.logger.info('ENTER STATE: VALID-RESPONSE')
+			
 			#log answer
+			normalized_response = user.last_question.normalizeResponse(response)
 			addNewAnswer(user, normalized_response)
 
 			#next q
 			next_question = sendNextQuestion(user)
 			if next_question:
 				user.state = 'ANSWERING-QUESTIONS'
+				db_session.add(user)
+				db_session.commit()
 				return next_question
 			else:
 				user.state = 'DONE-WITH-QUESTIONS'
+				db_session.add(user)
+				db_session.commit()
 
 		elif user.state == 'INVALID-RESPONSE':
 			app.logger.info('ENTER STATE: INVALID-RESPONSE')
+			user.state = 'ANSWERING-QUESTIONS'
+			db_session.add(user)
+			db_session.commit()
 			return sendClarification(user, user.last_question)
 
 		elif user.state == 'DONE-WITH-QUESTIONS':
@@ -100,6 +113,8 @@ def text():
 			#send eligibility info
 			eligible_programs = calculateAndGetEligibility(user)
 			user.state = 'ELIGIBLE' if eligible_programs else 'NOT-ELIGIBLE'
+			db_session.add(user)
+			db_session.commit()
 
 		elif user.state == 'ELIGIBLE':
 			app.logger.info('ENTER STATE: ELIGIBLE')
@@ -107,6 +122,8 @@ def text():
 			context = {'eligible_programs_description':eligible_programs_description}
 			message = sendMessageTemplate(user, 'eligible.html', **context)
 			user.state = 'FEEDBACK'
+			db_session.add(user)
+			db_session.commit()
 			
 			for p in eligible_programs:
 				template = str(p.name.replace(' ', '').lower()) + '.html'
@@ -116,6 +133,8 @@ def text():
 		elif user.state == 'NOT-ELIGIBLE':
 			app.logger.info('ENTER STATE: NOT-ELIGIBLE')
 			user.state = 'FEEDBACK'
+			db_session.add(user)
+			db_session.commit()
 			return sendMessageTemplate(user, 'not-eligible.html')
 
 		elif user.state == 'FEEDBACK':
@@ -176,13 +195,13 @@ def getEligibilityTemplate(eligible_programs):
 		return 'eligible.html'
 
 def addNewAnswer(user, answer):
-	app.logger.info('Adding user %s answer to DB: %s' % (user, answer))
+	app.logger.info('Adding ANSWER to DB: %s' % answer)
 	user.last_question.answer = answer
 	db_session.add(user)
 	db_session.commit()
 
 def addAndGetNewUser(phone_number):
-	app.logger.info('Adding user to DB with phone number: %s' % phone_number)
+	app.logger.info('Adding USER to DB with phone: %s' % phone_number)
 	user = User(phone_number=phone_number, questions=question_set)
 	db_session.add(user)
 	db_session.commit()
@@ -200,9 +219,8 @@ def sendNextQuestion(user):
 		return None
 
 def sendQuestion(user, question):
-	app.logger.info('Sending user %s the question: %s' % (user, question))
+	app.logger.info('Sending the question: %s' % question)
 	user.last_question = question
-	user.state == 'answering-questions'
 	db_session.add(user)
 	db_session.commit()
 	message = question.question_text
@@ -252,7 +270,7 @@ def calculateAndGetEligibility(user):
 	db_session.add(user)
 	db_session.commit()
 	eligible_programs = user.eligible_programs
-	app.logger.info('Eligible programs for %s are: %s' % (user, eligible_programs))
+	app.logger.info('Eligible programs are: %s' % eligible_programs)
 	return eligible_programs
 
 def getUserDataDict(user):
@@ -260,8 +278,11 @@ def getUserDataDict(user):
 	questions = user.questions
 	data = {}
 	for q in questions:
-		data[q.key] = int(q.answer)
-	app.logger.info('Data dict for %s is: %s' % (user, data))
+		try:
+			data[q.key] = int(q.answer)
+		except ValueError:
+			data[q.key] = q.answer
+	app.logger.info('Data dict for is: %s' % data)
 	return data
 
 if __name__ == '__main__':
