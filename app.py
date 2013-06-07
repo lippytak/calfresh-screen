@@ -143,6 +143,7 @@ def text():
 
 		elif user.state == 'ELIGIBLE':
 			app.logger.info('ENTER STATE: ELIGIBLE')
+			eligible_programs = calculateAndGetEligibility(user)
 			eligible_programs_description = stringifyPrograms(eligible_programs)
 			context = {'eligible_programs_description':eligible_programs_description}
 			message = sendMessageTemplate(user, 'eligible.html', **context)

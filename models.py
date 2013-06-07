@@ -2,7 +2,6 @@ from sqlalchemy import Table, Column, Integer, ForeignKey, String
 from sqlalchemy.orm import relationship, backref
 from database import Base
 import datetime
-import re
 
 user_programs = Table('user_programs_association', Base.metadata,
 	Column('users_id', Integer, ForeignKey('users.id')),
