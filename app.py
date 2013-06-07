@@ -19,33 +19,6 @@ env = os.environ['ENV']
 #globals
 question_set = []
 
-@app.before_first_request
-def setup():
-	# load questions
-	for indx, q in enumerate(questions_data):
-		key = q['key']
-		question_text = q['question_text']
-		clarification_text = q['clarification_text']
-		q_type = q['type']
-		
-		order = indx
-		if q_type == 'yesnoquestion':
-			q = YesNoQuestion(key=key, question_text=question_text, order=order, clarification_text=clarification_text)
-		elif q_type == 'rangequestion':
-			q = RangeQuestion(key=key, question_text=question_text, order=order, clarification_text=clarification_text)
-		elif q_type == 'freeresponsequestion':
-			q = FreeResponseQuestion(key=key, question_text=question_text, order=order, clarification_text=clarification_text)
-		question_set.append(q)
-		db_session.add(q)
-
-	# load programs
-	programs = [Calfresh(), Medical(), HealthySF(), FreeSchoolMeals(), CAP(), WIC()]
-	for p in programs:
-		db_session.add(p)
-	
-	#commit everything
-	db_session.commit()
-
 @app.teardown_request
 def shutdown_session(exception=None):
 	db_session.remove()
@@ -311,10 +284,37 @@ def getUserDataDict(user):
 	app.logger.info('Data dict for is: %s' % data)
 	return data
 
+def load_seed_data():
+	# load questions
+	for indx, q in enumerate(questions_data):
+		key = q['key']
+		question_text = q['question_text']
+		clarification_text = q['clarification_text']
+		q_type = q['type']
+		
+		order = indx
+		if q_type == 'yesnoquestion':
+			q = YesNoQuestion(key=key, question_text=question_text, order=order, clarification_text=clarification_text)
+		elif q_type == 'rangequestion':
+			q = RangeQuestion(key=key, question_text=question_text, order=order, clarification_text=clarification_text)
+		elif q_type == 'freeresponsequestion':
+			q = FreeResponseQuestion(key=key, question_text=question_text, order=order, clarification_text=clarification_text)
+		question_set.append(q)
+		db_session.add(q)
+
+	# load programs
+	programs = [Calfresh(), Medical(), HealthySF(), FreeSchoolMeals(), CAP(), WIC()]
+	for p in programs:
+		db_session.add(p)
+	
+	#commit everything
+	db_session.commit()
+
 if __name__ == '__main__':
 	port = int(os.environ.get('PORT', 5000))
 	#if env=='dev':
 	app.logger.warning('DROPPING ALL DB TABLES')
 	force_drop_all()
 	init_db()
+	load_seed_data()
 	app.run(host='0.0.0.0', port=port, debug=os.environ['DEBUG'])
