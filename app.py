@@ -76,7 +76,7 @@ def setup():
 	
 	#commit everything
 	db_session.commit()
-	program_set = Proram.query.all()
+	program_set = Program.query.all()
 	return 'loaded!: %s' % program_set
 
 @app.route('/')
