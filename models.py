@@ -146,7 +146,7 @@ class Calfresh(Program):
 
 	def calculateEligibility(self, data):
 		house_size = data['house_size']
-		monthly_income = data['monthly_income']
+		monthly_income = data['annual_income'] / 12
 		income_threshold = self.calcIncomeThreshold(house_size)
 		if monthly_income <= income_threshold:
 			return True
@@ -164,7 +164,7 @@ class Medical(Program):
 		self.name = 'Medi-Cal'
 
 	def calculateEligibility(self, data):
-		annual_income = data['monthly_income'] * 12
+		annual_income = data['annual_income']
 		house_size = data['house_size']
 		health_insurance = data['health_insurance']
 		income_threshold = FPL(house_size) * 1.38
@@ -183,7 +183,7 @@ class HealthySF(Program):
 		self.name = 'Healthy SF'
 
 	def calculateEligibility(self, data):
-		annual_income = data['monthly_income'] * 12
+		annual_income = data['annual_income']
 		house_size = data['house_size']
 		health_insurance = data['health_insurance']
 		income_threshold = FPL(house_size) * 5
@@ -206,7 +206,7 @@ class FreeSchoolMeals(Program):
 		self.name = 'Free School Meals'
 
 	def calculateEligibility(self, data):
-		annual_income = data['monthly_income'] * 12
+		annual_income = data['annual_income']
 		house_size = data['house_size']
 		kid_school = data['kid_school']
 		income_threshold = FPL(house_size) * 1.85
@@ -223,7 +223,7 @@ class CAP(Program):
 		self.name = 'CAP'
 
 	def calculateEligibility(self, data):
-		annual_income = data['monthly_income'] * 12
+		annual_income = data['annual_income']
 		house_size = data['house_size']
 		income_threshold = self.calcIncomeThreshold(house_size)
 		return True if annual_income <= income_threshold else False
@@ -242,7 +242,7 @@ class WIC(Program):
 		self.name = 'WIC'
 
 	def calculateEligibility(self, data):
-		annual_income = data['monthly_income'] * 12
+		annual_income = data['annual_income']
 		house_size = data['house_size']
 		pregnant_or_baby = data['pregnant_or_baby']
 		income_threshold = FPL(house_size) * 1.85
