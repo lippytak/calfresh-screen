@@ -19,8 +19,13 @@ env = os.environ['ENV']
 #globals
 question_set = []
 
+@app.before_first_request
+def setup():
+	pass
+
 @app.teardown_request
 def shutdown_session(exception=None):
+	db_session.commit()
 	db_session.remove()
 
 @app.route('/')
@@ -65,12 +70,14 @@ def text():
 		#new user
 		if not user:
 			app.logger.info('ENTER STATE: NEW-USER')
-			user = addAndGetNewUser(from_number)
+			#user = addAndGetNewUser(from_number)
+			app.logger.info('Adding USER to DB with phone: %s' % from_number)
+			user = User(phone_number=from_number, questions=question_set)
+			db_session.add(user)
+			db_session.commit()
 			welcome_message = sendMessageTemplate(user, 'welcome.html')
 			message = sendNextQuestion(user)
 			user.state = 'ANSWERING-QUESTIONS'
-			db_session.add(user)
-			#db_session.commit()
 			return message
 
 		elif user.state == 'ANSWERING-QUESTIONS':
@@ -78,7 +85,6 @@ def text():
 			normalized_response = user.last_question.normalizeResponse(response)
 			user.state = 'VALID-RESPONSE' if normalized_response else 'INVALID-RESPONSE'
 			db_session.add(user)
-			#db_session.commit()
 			
 		elif user.state == 'VALID-RESPONSE':
 			app.logger.info('ENTER STATE: VALID-RESPONSE')
@@ -92,18 +98,15 @@ def text():
 			if next_question:
 				user.state = 'ANSWERING-QUESTIONS'
 				db_session.add(user)
-				#db_session.commit()
 				return next_question
 			else:
 				user.state = 'DONE-WITH-QUESTIONS'
 				db_session.add(user)
-				#db_session.commit()
 
 		elif user.state == 'INVALID-RESPONSE':
 			app.logger.info('ENTER STATE: INVALID-RESPONSE')
 			user.state = 'ANSWERING-QUESTIONS'
 			db_session.add(user)
-			#db_session.commit()
 			return sendClarification(user, user.last_question)
 
 		elif user.state == 'DONE-WITH-QUESTIONS':
@@ -112,7 +115,6 @@ def text():
 			eligible_programs = calculateAndGetEligibility(user)
 			user.state = 'ELIGIBLE' if eligible_programs else 'NOT-ELIGIBLE'
 			db_session.add(user)
-			#db_session.commit()
 
 		elif user.state == 'ELIGIBLE':
 			app.logger.info('ENTER STATE: ELIGIBLE')
@@ -122,7 +124,6 @@ def text():
 			message = sendMessageTemplate(user, 'eligible.html', **context)
 			user.state = 'FEEDBACK'
 			db_session.add(user)
-			#db_session.commit()
 			
 			for p in eligible_programs:
 				template = str(p.name.replace(' ', '').lower()) + '.html'
@@ -133,7 +134,6 @@ def text():
 			app.logger.info('ENTER STATE: NOT-ELIGIBLE')
 			user.state = 'FEEDBACK'
 			db_session.add(user)
-			#db_session.commit()
 			return sendMessageTemplate(user, 'not-eligible.html')
 
 		elif user.state == 'FEEDBACK':
@@ -141,7 +141,6 @@ def text():
 			return sendMessageTemplate(user, 'feedback.html')
 
 	db_session.add(user)
-	#db_session.commit()
 
 # utils
 
@@ -158,7 +157,6 @@ def handleGlobalText(user, response):
 		sendMessageTemplate(user, 'help.html')
 	elif response == 'reset':
 		db_session.delete(user)
-		#db_session.commit()
 	return response
 
 def stringifyPrograms(eligible_programs):
@@ -197,13 +195,11 @@ def addNewAnswer(user, answer):
 	app.logger.info('Adding ANSWER to DB: %s' % answer)
 	user.last_question.answer = answer
 	db_session.add(user)
-	#db_session.commit()
 
 def addAndGetNewUser(phone_number):
 	app.logger.info('Adding USER to DB with phone: %s' % phone_number)
 	user = User(phone_number=phone_number, questions=question_set)
 	db_session.add(user)
-	#db_session.commit()
 	return user
 
 def sendNextQuestion(user):
@@ -214,14 +210,12 @@ def sendNextQuestion(user):
 	else:
 		user.finished = 1
 		db_session.add(user)
-		#db_session.commit()
 		return None
 
 def sendQuestion(user, question):
 	app.logger.info('Sending the question: %s' % question)
 	user.last_question = question
 	db_session.add(user)
-	#db_session.commit()
 	message = question.question_text
 	sendMessage(user, message)
 	return message
@@ -229,7 +223,6 @@ def sendQuestion(user, question):
 def sendClarification(user, question):
 	app.logger.info('Sending user %s question clarification: %s' % (user, question))
 	db_session.add(user)
-	#db_session.commit()
 	message = question.clarification_text
 	if not message:
 		message = question.question_text
@@ -267,7 +260,6 @@ def calculateAndGetEligibility(user):
 		if p.calculateEligibility(data):
 			user.eligible_programs.append(p)
 	db_session.add(user)
-	#db_session.commit()
 	eligible_programs = user.eligible_programs
 	app.logger.info('Eligible programs are: %s' % eligible_programs)
 	return eligible_programs
@@ -306,9 +298,10 @@ def load_seed_data():
 	programs = [Calfresh(), Medical(), HealthySF(), FreeSchoolMeals(), CAP(), WIC()]
 	for p in programs:
 		db_session.add(p)
-	
-	#commit everything
-	#db_session.commit()
+
+	# commit seed data
+	db_session.commit()
+	db_session.remove()
 
 if __name__ == '__main__':
 	port = int(os.environ.get('PORT', 5000))
