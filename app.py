@@ -293,13 +293,11 @@ def load_seed_data():
 
 	# load programs
 	programs = [Calfresh(), Medical(), HealthySF(), FreeSchoolMeals(), CAP(), WIC()]
-	app.logger.warning('Loadding programs: %s' % programs)
 	for p in programs:
 		db_session.add(p)
 
 	# commit seed data
 	db_session.commit()
-	db_session.remove()
 
 if __name__ == '__main__':
 	port = int(os.environ.get('PORT', 5000))
