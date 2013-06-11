@@ -45,7 +45,7 @@ def index():
 
 	#create two lists
 	program_names = []
-	elig_count = []
+	elig_count = []	
 	for p, v in data.iteritems():
 		program_names.append(str(p.name))
 		elig_count.append(int(v))
@@ -293,6 +293,7 @@ def load_seed_data():
 
 	# load programs
 	programs = [Calfresh(), Medical(), HealthySF(), FreeSchoolMeals(), CAP(), WIC()]
+	app.logger.warning('Loadding programs: %s' % programs)
 	for p in programs:
 		db_session.add(p)
 
