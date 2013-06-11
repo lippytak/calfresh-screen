@@ -137,7 +137,8 @@ def text():
 			app.logger.info('ENTER STATE: FEEDBACK')
 			return sendMessageTemplate(user, 'feedback.html')
 
-	db_session.add(user)
+		else:
+			return 'user not in a recognized state'
 
 # utils
 
@@ -155,8 +156,8 @@ def handleGlobalText(user, response):
 	elif response == 'reset' or response == 'restart':
 		user.state = ''
 		db_session.delete(user)
-	else:
-		return response
+		db_session.commit()
+	return response
 
 def stringifyPrograms(eligible_programs):
 	#32 char max
