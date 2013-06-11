@@ -298,6 +298,7 @@ def load_seed_data():
 
 	# commit seed data
 	db_session.commit()
+	db_session.remove()
 
 if __name__ == '__main__':
 	port = int(os.environ.get('PORT', 5000))
