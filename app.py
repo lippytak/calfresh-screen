@@ -101,7 +101,6 @@ def text():
 				return next_question
 			else:
 				user.state = 'DONE-WITH-QUESTIONS'
-				db_session.add(user)
 
 		elif user.state == 'INVALID-RESPONSE':
 			app.logger.info('ENTER STATE: INVALID-RESPONSE')
@@ -114,11 +113,9 @@ def text():
 			#send eligibility info
 			eligible_programs = calculateAndGetEligibility(user)
 			user.state = 'ELIGIBLE' if eligible_programs else 'NOT-ELIGIBLE'
-			db_session.add(user)
 
 		elif user.state == 'ELIGIBLE':
 			app.logger.info('ENTER STATE: ELIGIBLE')
-			eligible_programs = calculateAndGetEligibility(user)
 			eligible_programs_description = stringifyPrograms(eligible_programs)
 			context = {'eligible_programs_description':eligible_programs_description}
 			message = sendMessageTemplate(user, 'eligible.html', **context)
