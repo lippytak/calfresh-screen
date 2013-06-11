@@ -4,6 +4,7 @@ import twilio.twiml
 import json
 import random
 import collections
+import urllib2
 from questions import questions_data
 from twilio.rest import TwilioRestClient
 from flask import Flask, request, redirect, session, url_for, render_template
@@ -84,7 +85,6 @@ def text():
 			app.logger.info('ENTER STATE: ANSWERING-QUESTIONS')
 			normalized_response = user.last_question.normalizeResponse(response)
 			user.state = 'VALID-RESPONSE' if normalized_response else 'INVALID-RESPONSE'
-			db_session.add(user)
 			
 		elif user.state == 'VALID-RESPONSE':
 			app.logger.info('ENTER STATE: VALID-RESPONSE')
@@ -152,9 +152,11 @@ def handleGlobalText(user, response):
 	response = response.strip().lower()
 	if response == 'help':
 		sendMessageTemplate(user, 'help.html')
-	elif response == 'reset':
+	elif response == 'reset' or response == 'restart':
+		user.state = ''
 		db_session.delete(user)
-	return response
+	else:
+		return response
 
 def stringifyPrograms(eligible_programs):
 	#32 char max
