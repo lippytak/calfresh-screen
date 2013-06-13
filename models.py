@@ -13,6 +13,11 @@ user_questions = Table('user_questions_association', Base.metadata,
 	Column('question_id', Integer, ForeignKey('questions.id'))
 )
 
+# question_sets = Table('question_sets_association', Base.metadata,
+# 	Column('questionsets_id', Integer, ForeignKey('questionsets.id')),
+# 	Column('question_id', Integer, ForeignKey('questions.id'))
+# )
+
 class User(Base):
 	__tablename__ = 'users'
 	id = Column(Integer, primary_key=True)
@@ -33,7 +38,7 @@ class User(Base):
 	def __init__(self, phone_number, questions):
 		self.phone_number = phone_number
 		self.questions = questions
-		self.state = 'answering-questions'
+		self.state = 'BEGIN'
 
 	def __repr__(self):
 		return '<User phone: %r last_question: %r>' % (
@@ -45,6 +50,19 @@ class User(Base):
 		future_questions = sorted([q for q in self.questions if q.order > last_question_order], key=lambda question: question.order)
 		next_question = future_questions[0] if future_questions else None
 		return next_question
+
+# class QuestionSet(Base):
+# 	__tablename__ = 'questionsets'
+# 	id = Column(Integer, primary_key=True)
+# 	questions = relationship('Question',
+# 							secondary=question_sets,
+# 							backref='questions')
+
+# 	def __init__(self, questions = None):
+# 		self.questions = questions
+
+# 	def __repr__(self):
+# 		return '<Question Set: %r>' % (self.questions)
 
 class Question(Base):
 	__tablename__ = 'questions'
@@ -120,7 +138,7 @@ class FreeResponseQuestion(Question):
 class Program(Base):
 	__tablename__ = 'programs'
 	id = Column(Integer, primary_key=True)
-	name = description = Column(String(50), unique=True)
+	name = Column(String(50), unique=True)
 	discriminator = Column('type', String(50))
 	__mapper_args__ = {'polymorphic_on': discriminator}
 	

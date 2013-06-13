@@ -1,28 +1,16 @@
 import os
 import time
-import twilio.twiml
-import json
 import random
 import collections
-import urllib2
-from questions import questions_data
 from twilio.rest import TwilioRestClient
 from flask import Flask, request, redirect, session, url_for, render_template
 from flask.ext.sqlalchemy import SQLAlchemy
-from database import init_db, db_session, Base, force_drop_all
+from database import init_db, db_session, force_drop_all
+from seed import question_set
 from models import *
 
 #setup
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
-env = os.environ['ENV']
-
-#globals
-question_set = []
-
-@app.before_first_request
-def setup():
-	pass
 
 @app.teardown_request
 def shutdown_session(exception=None):
@@ -61,21 +49,14 @@ def index():
 def text():
 	# get info from twilio
 	from_number = request.args.get('From')
-	user = User.query.filter_by(phone_number=from_number).first()
 	incoming_message = request.args.get('Body')
+	user = createOrGetUser(phone_number = from_number)
 
 	#handle global text
 	response = handleGlobalText(user, incoming_message)
 
 	while True:
-		#new user
-		if not user:
-			app.logger.info('ENTER STATE: NEW-USER')
-			#user = addAndGetNewUser(from_number)
-			app.logger.info('Adding USER to DB with phone: %s' % from_number)
-			user = User(phone_number=from_number, questions=question_set)
-			db_session.add(user)
-			db_session.commit()
+		if user.state == 'BEGIN':
 			welcome_message = sendMessageTemplate(user, 'welcome.html')
 			message = sendNextQuestion(user)
 			user.state = 'ANSWERING-QUESTIONS'
@@ -196,7 +177,7 @@ def addNewAnswer(user, answer):
 	user.last_question.answer = answer
 	db_session.add(user)
 
-def addAndGetNewUser(phone_number):
+def createOrGetUser(phone_number):
 	app.logger.info('Adding USER to DB with phone: %s' % phone_number)
 	user = User(phone_number=phone_number, questions=question_set)
 	db_session.add(user)
@@ -276,38 +257,9 @@ def getUserDataDict(user):
 	app.logger.info('Data dict for is: %s' % data)
 	return data
 
-def load_seed_data():
-	# load questions
-	for indx, q in enumerate(questions_data):
-		key = q['key']
-		question_text = q['question_text']
-		clarification_text = q['clarification_text']
-		q_type = q['type']
-		
-		order = indx
-		if q_type == 'yesnoquestion':
-			q = YesNoQuestion(key=key, question_text=question_text, order=order, clarification_text=clarification_text)
-		elif q_type == 'rangequestion':
-			q = RangeQuestion(key=key, question_text=question_text, order=order, clarification_text=clarification_text)
-		elif q_type == 'freeresponsequestion':
-			q = FreeResponseQuestion(key=key, question_text=question_text, order=order, clarification_text=clarification_text)
-		question_set.append(q)
-		db_session.add(q)
-
-	# load programs
-	programs = [Calfresh(), Medical(), HealthySF(), FreeSchoolMeals(), CAP(), WIC()]
-	for p in programs:
-		db_session.add(p)
-
-	# commit seed data
-	db_session.commit()
-	db_session.remove()
-
 if __name__ == '__main__':
 	port = int(os.environ.get('PORT', 5000))
-	#if env=='dev':
 	app.logger.warning('DROPPING ALL DB TABLES')
-	force_drop_all()
+	#force_drop_all()
 	init_db()
-	load_seed_data()
 	app.run(host='0.0.0.0', port=port, debug=os.environ['DEBUG'])
