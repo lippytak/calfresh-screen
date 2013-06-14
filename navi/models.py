@@ -138,7 +138,7 @@ class Calfresh(Program):
 	id = Column(Integer, ForeignKey('programs.id'), primary_key=True)
 	__mapper_args__ = {'polymorphic_identity': 'calfresh'}
 
-	db.Model_INCOME_THRESHOLD = 1484
+	self.BASE_INCOME_THRESHOLD = 1484
 
 	def __init__(self):
 		self.name = 'CalFresh'
@@ -152,7 +152,7 @@ class Calfresh(Program):
 		return False
 
 	def calcIncomeThreshold(self, house_size):
-		return self.db.Model_INCOME_THRESHOLD + ((house_size-1) * 377)
+		return self.BASE_INCOME_THRESHOLD + ((house_size-1) * 377)
 
 class Medical(Program):
 	__tablename__ = 'medical'
@@ -228,9 +228,9 @@ class CAP(Program):
 		return True if annual_income <= income_threshold else False
 
 	def calcIncomeThreshold(self, house_size):
-		db.Model = 30260 #for families of 1 and 2
+		base = 30260 #for families of 1 and 2
 		increment = 7920
-		return db.Model + (max(0, (house_size-2)) * increment)
+		return base + (max(0, (house_size-2)) * increment)
 
 class WIC(Program):
 	__tablename__ = 'wic'
@@ -253,6 +253,6 @@ class WIC(Program):
 
 # utils
 def FPL(house_size):
-	db.Model = 11490
+	base = 11490
 	house_size = int(house_size)
-	return db.Model + (max(0, (house_size-1)) * 4020)
+	return base + (max(0, (house_size-1)) * 4020)
