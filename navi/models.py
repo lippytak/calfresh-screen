@@ -138,7 +138,7 @@ class Calfresh(Program):
 	id = Column(Integer, ForeignKey('programs.id'), primary_key=True)
 	__mapper_args__ = {'polymorphic_identity': 'calfresh'}
 
-	self.BASE_INCOME_THRESHOLD = 1484
+	BASE_INCOME_THRESHOLD = 1484
 
 	def __init__(self):
 		self.name = 'CalFresh'
