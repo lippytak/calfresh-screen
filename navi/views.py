@@ -6,8 +6,11 @@ from flask import request, render_template
 
 @app.teardown_request
 def shutdown_session(exception=None):
-	db.session.commit()
-	db.session.remove()
+	try:
+		db.session.commit()
+		db.session.remove()
+	except:
+		db.session.rollback()
 
 @app.route('/')
 def dashboard():
