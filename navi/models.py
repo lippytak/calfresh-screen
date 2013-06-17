@@ -120,7 +120,7 @@ class FreeResponseQuestion(Question):
 class Program(db.Model):
 	__tablename__ = 'programs'
 	id = Column(Integer, primary_key=True)
-	name = Column(String(50), unique=True)
+	name = Column(String(50))
 	discriminator = Column('type', String(50))
 	__mapper_args__ = {'polymorphic_on': discriminator}
 	
