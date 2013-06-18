@@ -1,6 +1,6 @@
 	p { color: grey;
-			font-size: 12px;
-			display: inline;}
+		font-size: 12px;
+		display: inline;}
 
 		h3, h4 { display: inline;}
 		
@@ -31,4 +31,5 @@
 
 		.header {
 			margin: 150px 0px 150px 0px;
+			text-align: center;
 		}
