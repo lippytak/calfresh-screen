@@ -1,6 +1,7 @@
 from navi import app
 import collections
 import random
+import time
 from utils import *
 from flask import request, render_template
 
@@ -45,6 +46,7 @@ def text():
 		if user.state == 'BEGIN':
 			app.logger.info('ENTER STATE: BEGIN')
 			welcome_message = sendMessageTemplate(user, 'welcome.html')
+			time.sleep(3)
 			message = sendNextQuestion(user)
 			user.state = 'ANSWERING-QUESTIONS'
 			return message
@@ -91,6 +93,8 @@ def text():
 			db.session.add(user)
 			
 			for p in eligible_programs:
+				#wait 3 seconds before sending each program detail
+				time.sleep(3)
 				template = str(p.name.replace(' ', '').lower()) + '.html'
 				sendMessageTemplate(user, template)
 			return message

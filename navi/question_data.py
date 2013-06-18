@@ -7,7 +7,7 @@ question_data = [
     },
     {
       "key": "annual_income",
-      "question_text": "What is the overall ANNUAL INCOME of EVERYONE in your household? Include ALL income, like wages, child support, and government benefits.",
+      "question_text": "What is the overall ANNUAL INCOME of EVERYONE in your household? Include ALL the money you get.",
       "clarification_text": "What is the overall ANNUAL INCOME of EVERYONE in your household? If you don't know, just take your best guess. Text a NUMBER, like 500.",
       "type":"rangequestion"
     },
@@ -31,7 +31,7 @@ question_data = [
     },
     {
       "key": "help",
-      "question_text": "Is there anything else you need help with? Do you have any questions? Text me anything. I can't reply but I promise to read it.",
+      "question_text": "Do you need help with anything? I can't reply but I promise to read it.",
       "clarification_text": "",
       "type":"freeresponsequestion"
     }
