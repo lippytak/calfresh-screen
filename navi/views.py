@@ -106,4 +106,5 @@ def text():
 			return sendMessageTemplate(user, 'feedback.html')
 
 		else:
+			app.logger.error('User not in recognized state')
 			return 'user not in a recognized state'
